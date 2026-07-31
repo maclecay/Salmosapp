@@ -1,0 +1,1630 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Salmodia — Editor</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #333; }
+
+  header { background: #1a1a2e; color: #fff; padding: 16px 24px; display: flex; align-items: center; gap: 16px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,.3); }
+  header h1 { font-size: 20px; font-weight: 700; letter-spacing: .5px; }
+  header .count { font-size: 13px; color: #aaa; margin-left: auto; }
+
+  .controls { background: #fff; padding: 16px 24px; border-bottom: 1px solid #e0e0e0; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .controls input[type=text] { flex: 1; min-width: 200px; padding: 9px 14px; border: 1px solid #ccc; border-radius: 8px; font-size: 14px; outline: none; }
+  .controls input[type=text]:focus { border-color: #4a90d9; }
+  .controls select { padding: 9px 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 14px; background: #fff; cursor: pointer; outline: none; }
+  .btn { padding: 9px 16px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .btn-clear { background: #eee; color: #555; }
+  .btn-clear:hover { background: #ddd; }
+  .btn-export { background: #2e7d32; color: #fff; }
+  .btn-export:hover { background: #1b5e20; }
+
+  .ciclo-tabs { display: flex; gap: 0; padding: 0 24px; background: #fff; border-bottom: 1px solid #e0e0e0; }
+  .ciclo-tab { padding: 10px 24px; font-size: 14px; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; color: #777; transition: all .2s; }
+  .ciclo-tab.active { color: #1a1a2e; border-bottom-color: #4a90d9; }
+  .ciclo-tab:hover { color: #333; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; padding: 20px 24px; }
+
+  .card { background: #fff; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.1); overflow: hidden; cursor: pointer; transition: box-shadow .2s, transform .1s; display: flex; }
+  .card:hover { box-shadow: 0 4px 14px rgba(0,0,0,.15); transform: translateY(-1px); }
+  .card-badge { width: 8px; flex-shrink: 0; }
+  .card-body { padding: 14px 16px; flex: 1; min-width: 0; }
+  .card-tiempo { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: #888; margin-bottom: 4px; }
+  .card-dia { font-size: 15px; font-weight: 700; color: #222; margin-bottom: 2px; }
+  .card-salmo { font-size: 12px; color: #999; margin-bottom: 6px; }
+  .card-ant { font-size: 13px; color: #555; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .card-arrow { padding: 14px 12px; display: flex; align-items: center; color: #ccc; font-size: 18px; }
+  .card-notas-badge { display: inline-block; font-size: 10px; background: #e8f5e9; color: #2e7d32; border-radius: 4px; padding: 2px 6px; margin-top: 6px; font-weight: 600; }
+  .card-audio-badge { display: inline-block; font-size: 10px; background: #e3f2fd; color: #1565c0; border-radius: 4px; padding: 2px 6px; margin-top: 6px; margin-left: 5px; font-weight: 600; }
+  .card-audio-badge.card-audio-missing { background: #f0f0f0; color: #999; }
+  .card-notas-missing { background: #fff3e0; color: #e65100; }
+
+  /* Tiempo colors */
+  .t-Adviento { background: #4A148C; }
+  .t-Navidad { background: #F9A825; }
+  .t-Cuaresma { background: #6A1B9A; }
+  .t-SemanaSanta { background: #B71C1C; }
+  .t-Pascua { background: #F57F17; }
+  .t-TiempoOrdinario { background: #2E7D32; }
+  .t-Ordinario { background: #388E3C; }
+  .t-Other { background: #546E7A; }
+
+  /* Modal */
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 200; display: none; align-items: flex-start; justify-content: center; padding: 24px; overflow-y: auto; }
+  .overlay.open { display: flex; }
+  .modal { background: #fff; border-radius: 16px; width: 100%; max-width: 680px; box-shadow: 0 8px 40px rgba(0,0,0,.25); margin: auto; }
+  .modal-header { padding: 20px 24px 16px; border-bottom: 1px solid #eee; display: flex; align-items: flex-start; gap: 12px; }
+  .modal-badge { width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 18px; font-weight: 700; flex-shrink: 0; }
+  .modal-title { flex: 1; }
+  .modal-title h2 { font-size: 18px; font-weight: 700; color: #1a1a2e; }
+  .modal-title p { font-size: 13px; color: #888; margin-top: 2px; }
+  .modal-close { background: none; border: none; font-size: 22px; cursor: pointer; color: #aaa; padding: 0 4px; line-height: 1; }
+  .modal-close:hover { color: #555; }
+  .modal-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; max-height: 70vh; overflow-y: auto; }
+  .modal-footer { padding: 16px 24px; border-top: 1px solid #eee; display: flex; gap: 10px; justify-content: flex-end; }
+
+  .field-group { display: flex; flex-direction: column; gap: 4px; }
+  .field-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: #888; }
+  .field-view { font-size: 14px; color: #333; line-height: 1.6; white-space: pre-wrap; }
+  .field-view.ant { font-style: italic; font-weight: 600; color: #1a1a2e; font-size: 15px; }
+  .field-input, .field-textarea { width: 100%; padding: 9px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; font-family: inherit; outline: none; resize: vertical; }
+  .field-input:focus, .field-textarea:focus { border-color: #4a90d9; }
+  .field-textarea { min-height: 100px; }
+  .field-textarea.tall { min-height: 180px; }
+  .notas-block { font-family: 'Courier New', monospace; font-size: 12px; background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px; line-height: 1.8; white-space: pre; overflow-x: auto; }
+
+  /* Chord sheet (chords interleaved above each text line) */
+  .chordsheet { font-family: 'Courier New', Courier, monospace; font-size: 15px; line-height: 1.2; background: #fbfbfd; border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px 16px; overflow-x: auto; }
+  .cs-line { margin-bottom: 7px; }
+  .cs-chords { white-space: pre; color: #c0392b; font-weight: 700; min-height: 1.15em; letter-spacing: 0; }
+  .cs-text { white-space: pre; color: #1f2430; }
+  .cs-ant .cs-text { font-style: italic; font-weight: 600; color: #1a1a2e; }
+  .cs-ant .cs-chords { color: #7b1fa2; }
+  .field-textarea.mono { font-family: 'Courier New', monospace; white-space: pre; font-size: 13px; line-height: 1.5; }
+
+  .btn-import { background: #1565C0; color: #fff; }
+  .btn-import:hover { background: #0D47A1; }
+  .btn-github { background: #24292e; color: #fff; }
+  .btn-github:hover { background: #000; }
+  .btn-exportdb { background: #2e7d32; color: #fff; }
+  .btn-exportdb:hover { background: #1b5e20; }
+  .btn-export-js { background: #607D8B; color: #fff; }
+  .btn-export-js:hover { background: #455A64; }
+
+  .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(20px); background: #1a1a2e; color: #fff; padding: 12px 20px; border-radius: 10px; font-size: 14px; box-shadow: 0 4px 20px rgba(0,0,0,.3); opacity: 0; pointer-events: none; transition: opacity .3s, transform .3s; z-index: 400; max-width: 90vw; text-align: center; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .btn-edit { background: #1565C0; color: #fff; }
+  .btn-edit:hover { background: #0D47A1; }
+  .btn-save { background: #2e7d32; color: #fff; }
+  .btn-save:hover { background: #1b5e20; }
+  .btn-cancel { background: #eee; color: #555; }
+  .btn-cancel:hover { background: #ddd; }
+
+  .empty { text-align: center; padding: 60px 24px; color: #aaa; font-size: 16px; grid-column: 1/-1; }
+
+
+  /* ── CHORD EDITOR (edit mode interleaved view) ── */
+  .ce-wrap { font-family: 'Courier New', Courier, monospace; font-size: 14px;
+    background: #fbfbfd; border: 1px solid #e0e0e0; border-radius: 8px;
+    overflow: hidden; margin-bottom: 4px; }
+  .ce-block { border-bottom: 1px solid #f0f0f0; }
+  .ce-block:last-child { border-bottom: none; }
+  .ce-block.is-ant .ce-chord-row { background: #fdf4ff; }
+  .ce-block.is-ant .ce-chord-input { color: #7b1fa2; }
+  .ce-block.is-ant .ce-text-input { font-style: italic; font-weight: 600; color: #1a1a2e; }
+
+  /* fila de acordes */
+  .ce-chord-row { padding: 2px 8px 1px; min-height: 22px; white-space: pre;
+    overflow-x: auto; line-height: 1.5; background: #f8f9fa; }
+  .ce-tok { display: inline; white-space: pre; }
+  .ce-tok.note { color: #c0392b; font-weight: 700; cursor: pointer;
+    border-radius: 2px; padding: 0 1px; }
+  .ce-tok.note:hover { background: #fde8e8; }
+  .ce-tok.note.sel { background: #c0392b; color: #fff; border-radius: 3px; }
+  .ce-tok.sp { cursor: default; }
+
+  /* fila de texto inline */
+  .ce-text-input { width: 100%; border: none; border-top: 1px solid #eee;
+    background: transparent; font-family: 'Courier New', Courier, monospace;
+    font-size: 14px; color: #1f2430; padding: 2px 8px 3px; outline: none;
+    line-height: 1.5; }
+  .ce-text-input:focus { background: #f0f7ff; }
+
+  /* notebar inline — aparece dentro del bloque activo, debajo del texto */
+  .ce-notebar-inline { display:none; align-items:center; gap:6px;
+    padding:4px 8px; background:#fff8e1; border-top:1px solid #ffe082;
+    font-size:12px; flex-wrap:wrap; }
+  .ce-notebar-inline.vis { display:flex; }
+  .ce-notebar-inline select { font-size:12px; padding:2px 6px;
+    border:1px solid #ccc; border-radius:4px; background:#fff; }
+  .ce-notebar-inline label { color:#856404; font-weight:600; font-size:11px; }
+
+  /* botones mover / acción */
+  .btn-mv { background:#e9ecef; border:1px solid #ced4da; color:#333;
+    border-radius:4px; padding:2px 7px; cursor:pointer; font-size:11px; }
+  .btn-mv:hover { background:#dee2e6; }
+  .btn-mv:disabled { opacity:.35; cursor:not-allowed; }
+  .btn-mv.del { background:#fff0f0; border-color:#f5c6cb; color:#721c24; }
+  .btn-mv.del:hover { background:#f8d7da; }
+
+  /* fila añadir nota — debajo del texto, compacta */
+  .ce-addrow { padding:3px 8px; display:flex; gap:5px; align-items:center;
+    border-top:1px dashed #e0e0e0; background:#fafafa; }
+  .ce-addrow input { font-family:'Courier New',monospace; font-size:12px;
+    border:1px solid #ddd; border-radius:4px; padding:2px 6px; width:110px; }
+  .ce-addrow button { font-size:11px; padding:2px 6px; }
+  .btn-addline { margin-top:5px; font-size:12px; }
+
+  /* Cursor de inserción parpadeante */
+  .ce-cursor { display:inline-block; width:2px; height:1.1em;
+    background:#1565C0; vertical-align:text-bottom; margin:0 1px;
+    animation:ce-blink .8s step-end infinite; }
+  @keyframes ce-blink { 0%,100%{opacity:1} 50%{opacity:0} }
+  .btn-deline { font-size:10px; padding:1px 5px; background:#fff0f0;
+    border:1px solid #f5c6cb; color:#721c24; border-radius:3px; cursor:pointer; }
+  .btn-deline:hover { background:#f8d7da; }
+
+  .export-modal { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 300; display: none; align-items: center; justify-content: center; padding: 24px; }
+
+
+
+  /* fila de texto — input inline */
+  .ce-text-input { width: 100%; border: none; border-top: 1px solid #eee;
+    background: transparent; font-family: 'Courier New', Courier, monospace;
+    font-size: 14px; color: #1f2430; padding: 3px 10px 5px; outline: none;
+    line-height: 1.6; }
+  .ce-text-input:focus { background: #f0f7ff; }
+
+
+
+  /* botones mover */
+  .btn-mv { background:#e9ecef; border:1px solid #ced4da; color:#333;
+    border-radius:4px; padding:2px 8px; cursor:pointer; font-size:12px; }
+  .btn-mv:hover { background:#dee2e6; }
+  .btn-mv:disabled { opacity:.35; cursor:not-allowed; }
+
+  .ce-addrow { padding:4px 10px; display:flex; gap:6px; align-items:center;
+    border-top:1px dashed #ddd; background:#fafafa; }
+  .ce-addrow input { font-family:'Courier New',monospace; font-size:12px;
+    border:1px solid #ddd; border-radius:4px; padding:2px 6px; width:120px; }
+  .ce-addrow button { font-size:11px; padding:2px 7px; }
+  .btn-addline { margin-top:6px; font-size:12px; }
+  .btn-deline { font-size:10px; padding:1px 6px; background:#fff0f0;
+    border:1px solid #f5c6cb; color:#721c24; border-radius:3px; cursor:pointer; }
+  .btn-deline:hover { background:#f8d7da; }
+
+  .export-modal.open { display: flex; }
+  .export-box { background: #fff; border-radius: 12px; width: 100%; max-width: 600px; }
+  .export-box h3 { padding: 18px 20px 14px; border-bottom: 1px solid #eee; font-size: 16px; }
+  .export-box pre { margin: 16px 20px; background: #f5f5f5; border-radius: 8px; padding: 12px; font-size: 12px; max-height: 300px; overflow: auto; white-space: pre-wrap; }
+  .export-box .foot { padding: 14px 20px; border-top: 1px solid #eee; display: flex; gap: 10px; justify-content: flex-end; }
+
+  /* ── Selector de audio (Google Drive) ── */
+  .audio-modal { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; align-items: center; justify-content: center; z-index: 300; padding: 16px; }
+  .audio-modal.open { display: flex; }
+  .audio-box { background: #fff; border-radius: 14px; width: 100%; max-width: 460px; max-height: 80vh; display: flex; flex-direction: column; overflow: hidden; }
+  .audio-box h3 { padding: 14px 18px; border-bottom: 1px solid #eee; font-size: 15px; }
+  .audio-box .audio-filter { margin: 10px 14px 6px; }
+  .audio-list { flex: 1; overflow-y: auto; padding: 4px 8px 10px; }
+  .audio-item { padding: 10px 12px; border-radius: 8px; cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+  .audio-item:hover { background: #f0f4ff; }
+  .audio-item .sz { margin-left: auto; color: #999; font-size: 11px; white-space: nowrap; }
+  .audio-empty { padding: 24px 16px; text-align: center; color: #888; font-size: 13px; }
+  .audio-box .foot { padding: 12px 16px; border-top: 1px solid #eee; display: flex; gap: 10px; justify-content: flex-end; }
+  .audio-cur { font-size: 13px; color: #444; margin: 6px 0 8px; word-break: break-all; }
+  .audio-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  .audio-btns .btn { font-size: 13px; }
+  audio.player { width: 100%; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>🎵</div>
+  <h1>Salmodia · Editor</h1>
+  <span class="count" id="countLabel">— salmos</span>
+</header>
+
+<div class="ciclo-tabs">
+  <div class="ciclo-tab active" data-ciclo="ALL">Todos</div>
+  <div class="ciclo-tab" data-ciclo="A">Ciclo A</div>
+  <div class="ciclo-tab" data-ciclo="B">Ciclo B</div>
+  <div class="ciclo-tab" data-ciclo="C">Ciclo C</div>
+</div>
+
+<div class="controls">
+  <input type="text" id="search" placeholder="Buscar por antífona, salmo, número…">
+  <select id="filterTiempo">
+    <option value="">Todos los tiempos</option>
+    <option>Adviento</option>
+    <option>Navidad</option>
+    <option>Cuaresma</option>
+    <option>Semana Santa</option>
+    <option>Pascua</option>
+    <option>Tiempo Ordinario</option>
+    <option>Propio de los Santos</option>
+  </select>
+  <select id="filterAudio">
+    <option value="">Audio: todos</option>
+    <option value="con">Con audio</option>
+    <option value="sin">Sin audio</option>
+  </select>
+  <select id="sortBy">
+    <option value="id">Orden litúrgico</option>
+    <option value="numero">Número de salmo</option>
+    <option value="salmodia">Antífona</option>
+  </select>
+  <button class="btn btn-github" onclick="loadFromGitHub()">☁ Cargar de GitHub</button>
+  <input type="file" id="dbFile" accept="*/*" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none" onchange="importDB(event)">
+  <label for="dbFile" class="btn btn-import" style="cursor:pointer;user-select:none">⬆ Importar BD</label>
+  <button class="btn btn-exportdb" onclick="exportDB()">⬇ Exportar BD</button>
+  <button class="btn btn-clear" onclick="clearFilters()">✕ Limpiar</button>
+  <button class="btn btn-export-js" onclick="openExport()">JS</button>
+</div>
+
+<div id="session-banner" style="display:none;background:#e8f5e9;border-bottom:1px solid #c8e6c9;
+  padding:10px 24px;display:none;align-items:center;gap:12px;font-size:13px;color:#1b5e20;">
+  <span>💾</span>
+  <span id="session-msg"></span>
+  <button class="btn" style="background:#2e7d32;color:#fff;padding:5px 14px;font-size:12px"
+    onclick="sessionResume()">Continuar sesión</button>
+  <button class="btn btn-clear" style="padding:5px 14px;font-size:12px"
+    onclick="sessionDiscard()">Descartar e importar nuevo .db</button>
+</div>
+<div class="grid" id="grid"></div>
+
+<!-- Detail / Edit modal -->
+<div class="overlay" id="overlay" onclick="closeModal(event)">
+  <div class="modal" id="modal">
+    <div class="modal-header">
+      <div class="modal-badge" id="mBadge"></div>
+      <div class="modal-title">
+        <h2 id="mTitle"></h2>
+        <p id="mSubtitle"></p>
+      </div>
+      <button class="modal-close" onclick="closeModalDirect()">✕</button>
+    </div>
+    <div class="modal-body" id="mBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-cancel" id="btnCancel" onclick="toggleEdit(false)" style="display:none">Cancelar</button>
+      <button class="btn btn-save" id="btnSave" onclick="saveEdit()" style="display:none">Guardar</button>
+      <button class="btn btn-edit" id="btnEdit" onclick="toggleEdit(true)">✏ Editar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Export modal -->
+<div class="export-modal" id="exportModal">
+  <div class="export-box">
+    <h3>Exportar — insertSalmo JS</h3>
+    <pre id="exportPre"></pre>
+    <div class="foot">
+      <button class="btn btn-cancel" onclick="document.getElementById('exportModal').classList.remove('open')">Cerrar</button>
+      <button class="btn btn-save" onclick="copyExport()">📋 Copiar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Selector de audio (Google Drive) -->
+<div class="audio-modal" id="audioModal">
+  <div class="audio-box">
+    <h3>🎵 Audios de la carpeta de Drive</h3>
+    <input class="field-input audio-filter" id="audioFilter" placeholder="Escribe para filtrar…" oninput="audioRenderList()">
+    <div class="audio-list" id="audioList"><div class="audio-empty">Cargando…</div></div>
+    <div class="foot">
+      <button class="btn btn-cancel" onclick="audioRefresh()">🔄 Actualizar lista</button>
+      <button class="btn btn-cancel" onclick="closeAudioPicker()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── DATA ───────────────────────────────────────────────────────────────────
+const SALMOS = [
+  // ── CICLO A ──────────────────────────────────────────────────────────────
+  {id:1,ciclo:'A',tiempo:'Adviento',dia:'Domingo 1',numero:'121',audio:'id1.mp3',salmodia:'Que alegría cuando me dijeron\n vamos a la casa del Señor\nYa están pisando nuestros pies\ntus umbrales, Jerusalén.',salmo:'Jerusalén esta fundada\ncomo ciudad bien compacta.\nAllá suben las tribus,\nlas tribus del Señor. R\nSegún la costumbre de Israel,\na celebrar el nombre del Señor\n en ella están los tribunales de justicia,\n en el palacio de David. R\nDesead la paz a Jerusalén:\n<<Vivan seguros los que te aman,\nhaya paz dentro de tus muros,\nseguridad en tus palacios.>> R\nPor mis hermanos y compañeros,\nvoy a decir: <<La paz contigo.>>\nPor la casa del Señor, nuestro Dios,\nte deseo todo bien. R',notas:'Do Sol\n  Do7         Fa\n  Do   Sol  Do'},
+  {id:2,ciclo:'A',tiempo:'Adviento',dia:'Domingo 2',numero:'71',audio:'id2.mp3',salmodia:'Que en sus días florezca la justicia\n y la paz abunde eternamente',salmo:'Dios mío, confía tu juicio al rey,\ntu justicia al hijo de reyes,\npara que rija a tu pueblo con justicia,\na tus humildes con rectitud. R\nQue en sus días florezca la justicia\ny la paz hasta que falte la luna;\nque domine de un mar a otro mar,\ndel Gran Rio al confín de la tierra. R\nEl librara al pobre que clamaba,\nal afligido que no tenía protector;\nel se apiadara del pobre y del indigente,\ny salvara la vida de los pobres. R\nQue su nombre sea eterno,\ny su fama dure como el sol;\nque él sea la bendición de todos los pueblos,\ny lo proclamen dichoso todas las razas de la tierra. R',notas:'Fa  lam  Sib\nrem  solm  Sib  Do  Fa'},
+  {id:3,ciclo:'A',tiempo:'Adviento',dia:'Domingo 3',numero:'145',audio:'id3.mp3',salmodia:'Ven, Señor, ven a salvarnos',salmo:'El Señor mantiene su fidelidad perpetuamente,\nhace justicia a los oprimidos,\nda pan a los hambrientos.\nEl Señor libera a los cautivos.\nEl Señor abre los ojos al ciego,\nel Señor endereza a los que ya se doblan,\nel Señor ama a los justos\nel Señor guarda a los peregrinos. R\nSustenta al huérfano y a la viuda,\ny trastorna el camino de los malvados.\nEl Señor reina eternamente,\nTu Dios, Sión, de edad en edad.',notas:'sim  Re  Sol  Fa#  sim'},
+  {id:4,ciclo:'A',tiempo:'Adviento',dia:'Domingo 4',numero:'23',audio:'id4.mp3',salmodia:'Ven Señor, ven a salvarnos',salmo:'Del Señor es la tierra y cuanto la llena,\nel orbe y todos sus habitantes;\nél la fundó sobre los mares,\nél la afianzó sobre los ríos. R\n¿Quién puede subir al monte del Señor?\n¿Quién puede estar en el recinto sacro?\nEl hombre de manos inocentes y puro corazón,\nque no confía en los ídolos. R\nEse recibirá la bendición del Señor,\nle hará justicia el Dios de salvación.\nEste es el grupo que busca al Señor,\nque viene a tu presencia, Dios de Jacob. R',notas:'sim  Re  Sol  Fa#  sim'},
+  {id:5,ciclo:'A',tiempo:'Navidad',dia:'Misa de la vigilia',numero:'88',audio:'id4.mp3',salmodia:'Cantaré eternamente las misericordias del Señor',salmo:'Selle una alianza con mi elegido,\njurando a David, mi siervo:\n<<Te fundare un linaje perpetuo,\nedificaré tu trono para todas las edades.>>\n Dichoso el pueblo que sabe aclamarte:\n caminará, oh Señor, a la luz de tu rostro;\n tu nombre es su gozo cada día,\n tu justicia es su orgullo.\n El me invocará: <<Tu eres mi padre,\n mi Dios, mi Roca salvadora.>>\n Le mantendré eternamente mi favor,\n y mi alianza con el será estable.',notas:'Faltan notas'},
+  {id:6,ciclo:'A',tiempo:'Navidad',dia:'Misa de media noche',numero:'57',audio:'id6.mp3',salmodia:'Hoy nos ha nacido un Salvador, el Mesias el Señor',salmo:'Cantad al Señor un cántico nuevo,\n cantad al Señor toda la tierra;\n cantad al Señor, bendecid su nombre.\n Proclamad día tras día su victoria.\n Contad a los pueblos su gloria,\n sus maravillas a todas las naciones;\n Alegrese el cielo, goce la tierra,\n retumbe el mar y cuanto lo llena;\n vitoreen los campos y cuanto hay en ellos,\n aclamen los árboles del bosque,\nDelante del Señor, que ya llega,\n ya llega a regir la tierra:\n regirá al orbe con justicia\n y a los pueblos con fidelidad.',notas:'Faltan notas'},
+  {id:7,ciclo:'A',tiempo:'Navidad',dia:'Misa de la aurora',numero:'96',audio:'id7.mp3',salmodia:'Hoy brillará una luz sobre nosotros, porque hoy nos ha nacido el Señor',salmo:'El Señor reina, la tierra goza,\nse alegran las islas innumerables.\nLos cielos pregonan su justicia,\ny todos los pueblos contemplan su gloria.\nAmanece la luz para el justo,\ny la alegría para los rectos de corazón.\nAlegraos, justos, con el Señor,\ncelebrad su santo nombre.',notas:'Faltan notas'},
+  {id:8,ciclo:'A',tiempo:'Navidad',dia:'Misa del día',numero:'97',audio:'id8.mp3',salmodia:'Los confines de la tierra han contemplado la victoria de nuestro Dios',salmo:'Cantad al Señor un cántico nuevo,\nporque ha hecho maravillas:\nsu diestra le ha dado la victoria,\n su santo brazo.\nEl Señor da a conocer su victoria\nrevela a las naciones su justicia:\nse acordó de su misericordia y su fidelidad\n en favor de la casa de Israel.\nLos confines de la tierra han contemplado\nla victoria de nuestro Dios.\nAclama al Señor, tierra entera;\ngritad, vitoread, tocad.\nTañed la cítara para el Señor,\nsuene los instrumentos:\ncon clarines y al son de trompetas, aclamad al Rey y Señor.',notas:'Faltan notas'},
+  {id:9,ciclo:'A',tiempo:'Navidad',dia:'Dom. dentro de la octava',numero:'127',audio:'id9.mp3',salmodia:'Dichosos los que temen al señor y siguen sus caminos',salmo:'Dichoso el teme al Señor\ny sigue sus caminos.\nComerás del fruto de tu trabajo,\nserás dichoso te irá bien.\nTu mujer como parra fecunda,\nen medio de tu casa;\ntus hijos, como renuevos de olivo,\nalrededor de la tu mesa.\nÉsta es la bendición del hombre,\nque teme al Señor.\nQue el Señor te bendiga desde Sión,\nque veas la prosperidad de Jerusalén\ntodos los días de tu vida',notas:'Faltan notas'},
+  {id:10,ciclo:'A',tiempo:'Navidad',dia:'1 de enero',numero:'66',audio:'id10.mp3',salmodia:'El Señor tenga piedad y nos bendiga',salmo:'El Señor tenga piedad y nos bendiga,\nilumine su rostro sobre nosotros;\nconozca la tierra tus caminos.\nTodos los pueblos tu salvación\nQue canten de alegría las naciones,\nporque riges el mundo con justicia,\nriges los pueblos con rectitud\ny gobiernas las naciones de la tierra.\nOh Dios, que te alaben los pueblos\n, que todos los pueblos te alaben.\nQue Dios nos bendiga; que le tema\nhasta los confines del orbe.',notas:'Faltan notas'},
+  {id:11,ciclo:'A',tiempo:'Navidad',dia:'2do domingo después de Navidad',numero:'147',audio:'id11.mp3',salmodia:'La palabra se hizo carne y acampó entre nosotros',salmo:'Glorificad al Señor, Jerusalén,\n alabad a tu Dios, Sión;\n porque ha reforzado los cerrojos de tus puertas,\ny ha bendecido a tus hijos dentro de ti.\nHa puesto paz en tus fronteras,\ny te sacia con flor de harina.\nÉl envía su mensaje a la tierra,\ny su palabra corre veloz.\nAnuncia su palabra a Jacob,\nsus decretos y mandatos a Israel;\ncon ninguna nación obró así,\nni les dio a conocer sus mandatos.',notas:'Faltan notas'},
+  {id:12,ciclo:'A',tiempo:'Navidad',dia:'Epifanía del Señor',numero:'71',audio:'id12.mp3',salmodia:'Se postraran ante ti, Señor, todos los pueblos de la tierra',salmo:'Dios mío, confía tu juicio al rey,\ntu justicia al hijo de reyes,\npara que rija a tu pueblo con justicia,\na tus humildes con rectitud.\nQue en sus días florezca la justicia\ny la paz hasta que falte la luna;\nque domine de un mar a otro mar,\ndel Gran Rio al confín de la tierra.\nQue los reyes de Tarsis y de las islas\nle paguen tributo,\nQue los reyes de Arabia y de Saba\nle ofrezcan sus dones.\nQue se postren ante él todos los reyes,\ny que todos los pueblos le sirvan.\nÉl librara al pobre que clamaba,\nal afligido que no tenía protector.',notas:'Faltan notas'},
+  {id:13,ciclo:'A',tiempo:'Navidad',dia:'Bautismo del Señor',numero:'28',audio:'id13.mp3',salmodia:'El Señor bendice a su pueblo con la paz',salmo:'Hijos de Dios, aclamad al Señor,\naclamad la gloria y el poder del Señor;\npostraos ante el Señor en el atrio sagrado;\nLa voz del Señor sobre las aguas,\nel Señor sobre las aguas torrenciales;\nla voz del Señor es potente,\nla voz del Señor es magnifica.\nEl Dios de la gloria ha tronado.\nEn su templo un grito unánime: <<Gloria!>>\nEl Señor se sienta por encima del aguacero,\nel Señor se sienta como rey eterno.',notas:'Faltan notas'},
+  {id:14,ciclo:'A',tiempo:'Cuaresma',dia:'Domingo 1',numero:'50',audio:'id14.mp3',salmodia:'Misericordia, Señor, hemos pecado',salmo:'Misericordia, Dios mío, por tu bondad,\npor tu inmensa compasión borra mi culpa.\nLava del todo mi delito,\ny limpia mi pecado. R\nPues yo reconozco mi culpa,\ntengo siempre presente mi pecado.\nContra ti, contra ti solo pequé,\ny cometí la maldad que aborreces. R\nOh Dios, crea en mí un corazón puro,\nrenuévame por dentro con espíritu firme.\nNo me arrojes lejos de tu rostro,\nno me quites tu santo espíritu. R\nDevuélveme la alegría de tu salvación,\nafiánzame por dentro con espíritu generoso.\nSeñor, me abrirás los labios,\ny mi boca proclamará tu alabanza. R',notas:'rem  Fa  Sib  La  rem'},
+  {id:15,ciclo:'A',tiempo:'Cuaresma',dia:'Domingo 2',numero:'32',audio:'id15.mp3',salmodia:'Que tu misericordia, Señor, venga sobre nosotros, como lo esperamos de ti',salmo:'La palabra del Señor es sincera,\ny todas sus acciones son leales;\nél ama la justicia y el derecho,\ny su misericordia llena la tierra. R\nLos ojos del Señor están puestos en sus fieles,\nen los que esperan en su misericordia,\npara librar sus vidas de la muerte,\ny reanimarlos en tiempo de hambre. R\nNosotros aguardamos al Señor;\nél es nuestro auxilio y nuestro escudo.\nQue tu misericordia, Señor, venga sobre nosotros,\ncomo lo esperamos de ti. R',notas:'Do  Fa  Sol\nDo  lam  Fa  Mi  La'},
+  {id:16,ciclo:'A',tiempo:'Cuaresma',dia:'Domingo 3',numero:'94',audio:'id16.mp3',salmodia:'Escucharemos tu voz, Señor',salmo:'Venido, aclamemos al Señor,\ndemos vítores a la roca que nos salva;\nentremos a su presencia dándole gracias,\naclamándolo con cantos. R\nEntrad, postrémonos por tierra,\nbendiciendo al Señor creador nuestro;\nporque Él es nuestro Dios\ny nosotros su pueblo,\nel rebaño que él guía. R\nOjalá escuchéis hoy su voz:\n<<No endurezcáis el corazón como en Meribá,\ncomo el día de Masá en el desierto,\ncuando vuestros padres me pusieron a prueba\ny me tentaron, aunque habían visto mis obras.>> R',notas:'rem  Do  lam  rem'},
+  {id:17,ciclo:'A',tiempo:'Cuaresma',dia:'Domingo 4',numero:'22',audio:'id17.mp3',salmodia:'El Señor es mi pastor, nada me falta',salmo:'El Señor es mi pastor, nada me falta.\nEn verdes praderas me hace recostar.\nMe conduce hacia fuentes tranquilas\ny repara mis fuerzas. R\nMe guía por el sendero justo\npor el honor de su nombre.\nAunque camine por cañadas oscuras\nnada temo, porque tú vas conmigo;\ntu vara y tu cayado me sosiegan. R\nPreparas una mesa ante mí\nenfrente de mis enemigos;\nme unges la cabeza con perfume\ny mi copa rebosa. R\nTu bondad y tu misericordia me acompañan\ntodos los días de mi vida;\ny habitaré en la casa del Señor\npor años sin término. R',notas:'La  Re  La  Mi  La'},
+  {id:18,ciclo:'A',tiempo:'Cuaresma',dia:'Domingo 5',numero:'129',audio:'id18.mp3',salmodia:'Del Señor viene la misericordia la redención copiosa',salmo:'Desde lo hondo a ti grito, Señor;\nSeñor, escucha mi voz;\nestén tus oídos atentos\na la voz de mi súplica. R\nSi llevas cuenta de los delitos, Señor,\n¿quién podrá resistir?\nPero de ti procede el perdón,\ny así infundes respeto. R\nMi alma espera en el Señor,\nespera en su palabra;\nmi alma aguarda al Señor\nmás que el centinela la aurora.\nAguarde Israel al Señor,\ncomo el centinela la aurora. R\nPorque del Señor viene la misericordia,\nla redención copiosa;\ny él redimirá a Israel\nde todos sus delitos. R',notas:'Faltan notas'},
+  {id:19,ciclo:'A',tiempo:'Semana Santa',dia:'Domingo de Ramos',numero:'21',audio:'id19.mp3',salmodia:'Dios mio, Dios mío, ¿por qué me has abandonado?',salmo:'Al verme, se burlan de mí,\nhacen visajes, menean la cabeza:\n<<Acudió al Señor, que lo ponga a salvo;\nque lo libre, si tanto lo quiere.>>\nMe acorrala una jauría de perros,\nme rodea una banda de malvados,\nme perforan las manos y los pies,\npuedo contar todos mis huesos.\nSe reparten mi ropa,\nechan a suertes mi túnica.\nPero tú, Señor, no te quedes lejos,\nfuerza mía, ven corriendo a ayudarme.\nContaré tu fama a mis hermanos,\nen medio de la asamblea te alabaré.',notas:'Faltan notas'},
+  {id:20,ciclo:'A',tiempo:'Semana Santa',dia:'Jueves Santo',numero:'88',audio:'id20.mp3',salmodia:'Cantaré eternamente las misericordias del Señor',salmo:'Encontré a David, mi siervo,\ny lo he ungido con mi oleo sagrado;\npara que mi mano esté siempre con él,\ny mi brazo lo haga valeroso.\nMi fidelidad y mi misericordia lo acompañaran,\npor mi nombre crecerá su poder.\nÉl me invocará: <<Tú eres mi padre,\nmi Dios, mi Roca salvadora.>>',notas:'Faltan notas'},
+  {id:21,ciclo:'A',tiempo:'Semana Santa',dia:'Viernes Santo',numero:'30',audio:'id21.mp3',salmodia:'Padre, en tus manos encomiendo mi espíritu',salmo:'A ti, Señor, me acojo;\nno quede yo nunca defraudado;\ntú que eres justo, ponme a salvo.\nA tus manos encomiendo mi espíritu;\ntú, el Dios leal, me librarás.\nSoy la burla de todos mis enemigos,\nla irrisión de mis vecinos,\nel espanto de mis conocidos;\nme ven por la calle, y escapan de mí.\nMe han olvidado como a un muerto,\nme han desechado como a un cacharro inutil.\nPero yo confío en ti, Señor;\nte digo: <<Tú eres mi Dios.>>\nEn tus manos están mis azares;\nlíbrame de los enemigos que me persiguen.',notas:'Faltan notas'},
+  {id:22,ciclo:'A',tiempo:'Semana Santa',dia:'Domingo de Resurrección',numero:'117',audio:'id22.mp3',salmodia:'Este es día que actuó el Señor, sea nuestra alegría y nuestro gozo',salmo:'Que los diga la casa de Israel:\nes eterna su misericordia.\nQue lo diga la casa de Aarón:\nes eterna su misericordia.\nQue lo digan los fieles del Señor:\nes eterna su misericordia.\nLa piedra que desecharon los arquitectos\nes ahora la piedra angular.\nEs el Señor quien lo ha hecho,\nha sido un milagro patente.\nEste es el día que actuó el Señor,\nsea nuestra alegría y nuestro gozo.',notas:'Faltan notas'},
+  {id:23,ciclo:'A',tiempo:'Pascua',dia:'Domingo 2',numero:'117',audio:'id23.mp3',salmodia:'Dad gracias al Señor porque es bueno,\nporque es eterna su misericordia',salmo:'Diga la casa de Israel: eterna es su misericordia.\nDiga la casa de Aarón: eterna es su misericordia.\nDigan los fieles del Señor:\neterna es su misericordia. R\nEmpujaban y empujaban para derribarme,\npero el Señor me ayudó;\nel Señor es mi fuerza y mi energía, \nel es mi salvación. R\nLa piedra que desecharon los arquitectos \nes ahora la piedra angular.\nEste es el día que actuó el Señor.\nSea nuestra alegría y nuestro gozo. R',notas:'Re  sim  Sol  Re'},
+  {id:24,ciclo:'A',tiempo:'Pascua',dia:'Domingo 3',numero:'15',audio:'id24.mp3',salmodia:'Caminaré en presencia del Señor en el país de la vida',salmo:'Protégeme, Dios mío, que me refugio en ti;\nyo digo al Señor: <<Tú eres mi bien.>>\nEl Señor es el lote de mi heredad y mi copa;\nmi suerte está en tu mano. R\nBendeciré al Señor que me aconseja;\nhasta de noche me instruye internamente.\nTengo siempre presente al Señor;\ncon él a mi derecha no vacilaré. R\nPor eso se me alegra el corazón\nse gozan mis entrañas\ny mi carne descansa serena.\nPorque no me entregarás a la muerte. R\nMe enseñarás el sendero de la vida,\nme saciarás de gozo en tu presencia. R',notas:'mim  sim  Do  Re  mim'},
+  {id:25,ciclo:'A',tiempo:'Pascua',dia:'Domingo 4',numero:'22',audio:'id25.mp3',salmodia:'El Señor es mi pastor, nada me falta',salmo:'El Señor es mi pastor, nada me falta.\nEn verdes praderas me hace reposar.\nMe conduce hacia fuentes tranquilas\ny repara mis fuerzas.\nMe guía por el sendero justo\npor el honor de su nombre.\nAunque camine por cañadas oscuras\nnada temo, porque tú vas conmigo.',notas:'Faltan notas'},
+  {id:26,ciclo:'A',tiempo:'Pascua',dia:'Domingo 5',numero:'32',audio:'id26.mp3',salmodia:'Que tu misericordia, Señor, venga sobre nosotros, como lo esperamos de ti',salmo:'Aclamad, justos del Señor,\nque merece la alabanza de los buenos.\nDad gracias al Señor con la cítara,\ntocad en su honor el arpa de diez cuerdas. R\nQue la palabra del Señor es sincera,\ny todas sus acciones son leales;\nél ama la justicia y el derecho. R\nLos ojos del Señor están puestos en sus fieles,\nen los que esperan en su misericordia. R',notas:'Do  Fa  Sol'},
+  {id:27,ciclo:'A',tiempo:'Pascua',dia:'Domingo 6',numero:'65',audio:'id27.mp3',salmodia:'Aclamad al Señor, tierra entera',salmo:'Aclamad al Señor, tierra entera;\ntocad en honor de su nombre;\ncantad himnos a su gloria.\nDecid a Dios: <<Que temibles son tus obras!>>\nQue se postre ante ti la tierra entera.\nVenid a ver las obras de Dios,\nsus temibles proezas entre los hombres.',notas:'Faltan notas'},
+  {id:28,ciclo:'A',tiempo:'Pascua',dia:'Domingo 7/Ascensión del Señor',numero:'46',audio:'id28.mp3',salmodia:'Dios asciende entre aclamaciones, el Señor, al son de trompetas',salmo:'Pueblos todos batid palmas,\naclamad a Dios con gritos de júbilo;\nporque el Señor, es sublime y terrible,\nemperador de toda la tierra.\nDios asciende entre aclamaciones,\nel Señor, al son de trompetas.\nTocad para Dios, tocad,\ntocad para nuestro rey, tocad.',notas:'Faltan notas'},
+  {id:29,ciclo:'A',tiempo:'Pascua',dia:'Pentecostés',numero:'103',audio:'id29.mp3',salmodia:'Envía tu espíritu, Señor, y renueva la faz de la tierra',salmo:'Bendice alma mía al Señor,\n¡Dios mío, que grande eres!\nTe vistes de belleza y majestad,\nla luz te envuelve como un manto.\nCuántas son tus obras, Señor,\ny todas las hiciste con sabiduría.\nEnvías tu aliento y los creas,\ny renuevas la faz de la tierra.',notas:'Faltan notas'},
+  {id:30,ciclo:'A',tiempo:'Tiempo Ordinario',dia:'Santísima Trinidad',numero:'Dn 3',audio:'id30.mp3',salmodia:'Por siempre yo cantaré tu nombre Señor',salmo:'1. Bendito eres, Señor, Dios de nuestros padres.\n2. Bendito tu nombre santo y glorioso.\n3. Bendito eres en el templo de tu santa gloria.\n4.Bendito eres sobre el trono de tu reino.\n5. Bendito eres tú, que sentado sobre querubines sondeas los abismos.\n6.Bendito eres en la bóveda del cielo.',notas:'Mi  Si  La  Mi'},
+  {id:31,ciclo:'A',tiempo:'Tiempo Ordinario',dia:'Domingo 2',numero:'39',audio:'id31.mp3',salmodia:'Aquí estoy Señor, para hacer tu voluntad',salmo:'Yo esperaba con ansia al Señor,\nÉl se inclinó y escuchó mi grito;\nme puso en la boca un cántico nuevo. R\nTú no quieres sacrificios ni ofrendas,\ny, en cambio. Me abriste el oído. R\nComo está escrito en mi libro:\n<<Para hacer tu voluntad,\nDios mío, lo quiero.>> R',notas:'mim  sim  Do  Re  mim'},
+  {id:32,ciclo:'A',tiempo:'Tiempo Ordinario',dia:'Domingo 3',numero:'26',audio:'id32.mp3',salmodia:'El Señor es mi luz y mi salvación',salmo:'El Señor es mi luz y mi salvación,\n¿a quién temeré?\nEl Señor es la defensa de mi vida,\n¿quién me hará temblar? R\nUna cosa pido al Señor,\neso buscaré:\nhabitar en la casa del Señor\npor los días de mi vida. R\nEspero gozar de la dicha del Señor\nen el país de la vida.\nEspera en el Señor, sé valiente. R',notas:'sim  La  Fa#  sim'},
+  {id:33,ciclo:'A',tiempo:'Tiempo Ordinario',dia:'Domingo 4',numero:'145',audio:'id33.mp3',salmodia:'Dichosos los pobres en el espíritu, porque de ellos es el reino de los cielos',salmo:'El Señor mantiene su fidelidad perpetuamente,\nél hace justicia a los oprimidos;\nél da pan a los hambrientos,\nel Señor libera a los cautivos. R\nEl Señor abre los ojos al ciego,\nel Señor endereza a los que ya se doblan,\nel Señor ama a los justos. R\nSustenta al huérfano y a la viuda.\nEl Señor reina por eternamente. R',notas:'Mi  do#m  La  Si  Mi'},
+  {id:34,ciclo:'A',tiempo:'Tiempo Ordinario',dia:'Domingo 5',numero:'111',audio:'id34.mp3',salmodia:'El justo brilla en las tinieblas como una luz',salmo:'En las tinieblas brilla como una luz\nel que es justo, clemente y compasivo.\nDichoso el que se apiada y presta.\nEl justo jamás vacilará.\nNo teme malas noticias.\nReparte limosnas a los pobres.',notas:'Faltan notas'},
+  {id:35,ciclo:'A',tiempo:'Tiempo Ordinario',dia:'Domingo 6',numero:'118',audio:'id35.mp3',salmodia:'Dichoso el que camina en la voluntad del Señor',salmo:'Dichoso el, con vida intachable,\ncamina en la voluntad del Señor.\nOjalá esté firme mi camino\npara cumplir tus consignas. R\nHaz bien a tu siervo,\ny cumpliré tus palabras. R',notas:'Faltan notas'},
+  {id:36,ciclo:'A',tiempo:'Tiempo Ordinario',dia:'Domingo 7',numero:'108',audio:'id36.mp3',salmodia:'El Señor es compasivo y misericordioso',salmo:'Bendice, alma mía, al Señor.\nÉl perdona todas tus culpas\ny cura todas tus enfermedades.\nEl Señor es compasivo y misericordioso,\nlento a la ira y rico en clemencia.\nComo dista el oriente del ocaso,\nasí aleja de nosotros nuestros delitos.',notas:'Faltan notas'},
+  {id:37,ciclo:'A',tiempo:'Tiempo Ordinario',dia:'Domingo 8',numero:'61',audio:'id37.mp3',salmodia:'Descansa solo en Dios, alma mía',salmo:'Sólo en Dios descansa mi alma,\nporque de él viene mi salvación.\nSólo él es mi roca y mi salvación,\nmi alcázar; nunca vacilaré. R',notas:'Faltan notas'},
+  {id:38,ciclo:'A',tiempo:'Tiempo Ordinario',dia:'Domingo 9',numero:'30',audio:'id38.mp3',salmodia:'Sé la roca de mi refugio, Señor',salmo:'A ti, Señor, me acojo;\nInclina tu oído hacia mí,\nven aprisa a librarme. R\nSé la roca de mi refugio.\nHaz brillar tu rostro sobre tu siervo;\nsálvame por tu misericordia. R',notas:'Faltan notas'},
+  {id:39,ciclo:'A',tiempo:'Tiempo Ordinario',dia:'Domingo 10',numero:'49',audio:'id39.mp3',salmodia:'Al que sigue buen camino le haré ver la salvación de Dios',salmo:'El Dios de los dioses, el Señor, habla,\nconvoca la tierra de oriente a occidente.\nOfrece a Dios un sacrificio de alabanza. R',notas:'Faltan notas'},
+  {id:40,ciclo:'A',tiempo:'Tiempo Ordinario',dia:'Domingo 11',numero:'99',audio:'id40.mp3',salmodia:'Nosotros somos su pueblo, ovejas de su rebaño',salmo:'Aclamad al Señor, tierra entera;\nservid al Señor con alegría.\nSabed que el Señor es Dios;\nél nos hizo y somos suyos. R\nEl Señor es bueno,\nsu misericordia es eterna. R',notas:'Faltan notas'},
+  {id:41,ciclo:'A',tiempo:'Tiempo Ordinario',dia:'Domingo 12',numero:'68',audio:'id41.mp3',salmodia:'Que me escuche tu gran bondad, Señor',salmo:'Por ti he aguantado afrentas.\nPorque me devora el celo de tu templo. R\nQue me escuche tu gran bondad;\nResponde, Señor, con la bondad de tu gracia. R',notas:'Faltan notas'},
+  {id:42,ciclo:'A',tiempo:'Tiempo Ordinario',dia:'Domingo 13',numero:'144',audio:'id42.mp3',salmodia:'Cantaré',salmo:'Cantaré eternamente las misericordias del Señor.\nDichoso el pueblo que sabe aclamarte. R\nPorque Tú eres su honor y su fuerza. R',notas:'Faltan notas'},
+  {id:43,ciclo:'A',tiempo:'Tiempo Ordinario',dia:'Domingo 14',numero:'144',audio:'id43.mp3',salmodia:'Bendeciré tu nombre por siempre, Dios mío, mi rey',salmo:'Te ensalzaré, Dios mío, mi rey,\nBendeciré tu nombre por siempre jamás. R\nEl Señor es clemente y misericordioso. R\nQue todas tus criaturas te den gracias, Señor. R',notas:'Faltan notas'},
+  {id:44,ciclo:'A',tiempo:'Tiempo Ordinario',dia:'Domingo 15',numero:'64',audio:'id44.mp3',salmodia:'La semilla cayó en tierra buena y dio fruto',salmo:'Tú cuidas de la tierra, la riegas. R\nRiegas los surcos, igualas los terrones. R\nCoronas el año con tus bienes. R\nLas praderas se cubren de rebaños. R',notas:'Faltan notas'},
+  {id:45,ciclo:'A',tiempo:'Tiempo Ordinario',dia:'Domingo 16',numero:'85',audio:'id45.mp3',salmodia:'Tu Señor, eres bueno y clemente',salmo:'Tú, Señor, eres bueno y clemente,\nrico en misericordia con los que te invocan. R\nTodos los pueblos vendrán a postrarse. R\nGrande eres tú y haces maravillas. R',notas:'Faltan notas'},
+  {id:46,ciclo:'A',tiempo:'Tiempo Ordinario',dia:'Domingo 17',numero:'118',audio:'id46.mp3',salmodia:'¡Cuánto amo tu voluntad, Señor!',salmo:'Mi porción es el Señor;\nhe resuelto guardar tus palabras. R\nQue tu bondad me consuele. R\nYo amo tus mandatos\nmás que el oro purísimo. R',notas:'Faltan notas'},
+  {id:47,ciclo:'A',tiempo:'Tiempo Ordinario',dia:'Domingo 18',numero:'144',audio:'id47.mp3',salmodia:'Señor, nos sacias de favores',salmo:'El Señor es clemente y misericordioso. R\nLos ojos de todos te están aguardando,\ntú les das comida a su tiempo. R\nEl Señor es justo en todos sus caminos. R',notas:'Faltan notas'},
+  {id:48,ciclo:'A',tiempo:'Tiempo Ordinario',dia:'Domingo 19',numero:'84',audio:'id48.mp3',salmodia:'Muestranos, Señor, tu misericordia y danos tu salvación',salmo:'Voy a escuchar lo que dice el Señor:\n"Dios anuncia la paz a su pueblo". R\nLa misericordia y la verdad se han encontrado. R\nEl Señor nos dará la lluvia. R',notas:'Faltan notas'},
+  {id:49,ciclo:'A',tiempo:'Tiempo Ordinario',dia:'Domingo 20',numero:'66',audio:'id49.mp3',salmodia:'Oh Dios, que te alaben los pueblos, que todos los pueblos te alaben',salmo:'El Señor tenga piedad y nos bendiga. R\nQue canten de alegría las naciones. R\nOh Dios, que te alaben los pueblos. R',notas:'Faltan notas'},
+  {id:50,ciclo:'A',tiempo:'Tiempo Ordinario',dia:'Domingo 21',numero:'137',audio:'id50.mp3',salmodia:'Señor, tu misericordia es eterna, no abandones la obra de tus manos',salmo:'Te doy gracias, Señor, de todo corazón. R\nPor tu misericordia y tu lealtad. R\nEl Señor es sublime, se fija en el humilde. R',notas:'Faltan notas'},
+  {id:51,ciclo:'A',tiempo:'Tiempo Ordinario',dia:'Domingo 22',numero:'62',audio:'id51.mp3',salmodia:'Mi alma está sedienta de ti, Señor Dios mío',salmo:'Oh Dios, tú eres mi Dios, por ti madrugo;\nmi alma está sedienta de ti. R\n¡Como te contemplaba en el santuario! R\nToda la vida te bendeciré. R',notas:'Faltan notas'},
+  {id:52,ciclo:'A',tiempo:'Tiempo Ordinario',dia:'Domingo 23',numero:'94',audio:'id52.mp3',salmodia:'Ojala escucheis hoy la voz del Señor, no endurezcais vuestros corazones',salmo:'Venid, aclamemos al Señor. R\nEntrad postrémonos por tierra. R\nOjalá escuchen hoy su voz. R',notas:'Faltan notas'},
+  {id:53,ciclo:'A',tiempo:'Tiempo Ordinario',dia:'Domingo 24',numero:'102',audio:'id53.mp3',salmodia:'El Señor es compasivo y misericordioso',salmo:'Bendice, alma mía, al Señor. R\nÉl perdona todas tus culpas. R\nNo nos trata como merecen nuestros pecados. R\nComo dista el oriente del ocaso. R',notas:'Faltan notas'},
+  {id:54,ciclo:'A',tiempo:'Tiempo Ordinario',dia:'Domingo 25',numero:'144',audio:'id54.mp3',salmodia:'Cerca está el Señor de los que lo invocan',salmo:'Dia tras día te bendeciré. R\nEl Señor es clemente y misericordioso. R\nEl Señor es justo en todos sus caminos;\ncerca está el Señor de los que lo invocan. R',notas:'Faltan notas'},
+  {id:55,ciclo:'A',tiempo:'Tiempo Ordinario',dia:'Domingo 26',numero:'24',audio:'id55.mp3',salmodia:'Recuerda Señor tu ternura',salmo:'Señor, enseñame tus caminos. R\nRecuerda, Señor, tu ternura y tu misericordia. R\nEl señor es bueno y recto. R',notas:'Faltan notas'},
+  {id:56,ciclo:'A',tiempo:'Tiempo Ordinario',dia:'Domingo 27',numero:'79',audio:'id56.mp3',salmodia:'La viña del señor es la casa de Israel',salmo:'Sacaste una vid de Egipto. R\n¿Por qué has derribado su cerca? R\nDios de los ejércitos, vuelvete. R\nNo nos alejaremos de ti. R',notas:'Faltan notas'},
+  {id:57,ciclo:'A',tiempo:'Tiempo Ordinario',dia:'Domingo 28',numero:'22',audio:'id57.mp3',salmodia:'El Señor es mi pastor, nada me falta',salmo:'El Señor es mi pastor, nada me falta.\nEn verdes praderas me hace recostar. R\nMe guía por el sendero justo. R\nPreparas una mesa ante mí. R\nTu bondad y tu misericordia me acompañan. R',notas:'Faltan notas'},
+  {id:58,ciclo:'A',tiempo:'Tiempo Ordinario',dia:'Domingo 29',numero:'95',audio:'id58.mp3',salmodia:'Aclamad la gloria y el poder del Señor',salmo:'Cantad al Señor un cántico nuevo. R\nPorque grande es el Señor y muy digno de alabanza. R\nFamilias de los pueblos, aclamad al Señor. R',notas:'Faltan notas'},
+  {id:59,ciclo:'A',tiempo:'Tiempo Ordinario',dia:'Domingo 30',numero:'17',audio:'id59.mp3',salmodia:'Yo te amo Señor, tu eres mi fortaleza',salmo:'Yo te amo, Señor, tú eres mi fortaleza. R\nInvoco al Señor de mi alabanza. R\nViva el Señor, bendita sea mi Roca. R',notas:'Faltan notas'},
+  {id:60,ciclo:'A',tiempo:'Tiempo Ordinario',dia:'Domingo 31',numero:'130',audio:'id60.mp3',salmodia:'Guarda mi alma en la paz, junto a ti, Señor',salmo:'Señor, mi corazón no es ambicioso. R\nSino que acallo y modero mis deseos. R\nEspere Israel en el Señor. R',notas:'Faltan notas'},
+  {id:61,ciclo:'A',tiempo:'Tiempo Ordinario',dia:'Domingo 32',numero:'62',audio:'id61.mp3',salmodia:'Mi alma está sedienta de ti, Señor Dios mío',salmo:'Oh Dios, tú eres mi Dios, por ti madrugo. R\n¡Como te contemplaba en el santuario! R\nToda la vida te bendeciré. R\nEn el lecho me acuerdo de ti. R',notas:'Faltan notas'},
+  {id:62,ciclo:'A',tiempo:'Tiempo Ordinario',dia:'Domingo 33',numero:'127',audio:'id62.mp3',salmodia:'Dichoso el que teme al Señor y sigue sus caminos',salmo:'Dichoso el que sigue al Señor. R\nTu mujer como parra fecunda. R\nEsta es la bendición del hombre que teme al Señor. R',notas:'Faltan notas'},
+  // ── CICLO B ──────────────────────────────────────────────────────────────
+  {id:63,ciclo:'B',tiempo:'Adviento',dia:'Domingo 1',numero:'79',audio:'id63.mp3',salmodia:'Señor, Dios nuestro, restáuranos, que brille tu rostro y nos salve',salmo:'Pastor de Israel, escucha,\ntú que te sientas sobre los querubines, resplandece.\nDespierta tu poder y ven a salvarnos. R\nDios de los ejércitos, vuélvete. R\nQue tu mano proteja al escogido. R',notas:'Faltan notas'},
+  {id:64,ciclo:'B',tiempo:'Adviento',dia:'Domingo 2',numero:'84',audio:'id64.mp3',salmodia:'Muestranos, Señor, tu misericordia y danos tu salvación',salmo:'Voy a escuchar lo que dice el Señor:\n"Dios anuncia la paz a su pueblo". R\nLa misericordia y la verdad se encuentran. R\nEl Señor nos dará la lluvia. R',notas:'Faltan notas'},
+  {id:65,ciclo:'B',tiempo:'Adviento',dia:'Domingo 3',numero:'Lc 1',audio:'id65.mp3',salmodia:'Se alegra mi espíritu en Dios, mi salvador',salmo:'Proclama mi alma la grandeza del Señor,\nse alegra mi espíritu en Dios, mi salvador. R\nPorque el Poderoso ha hecho obras grandes por mí. R\nA los hambrientos colma de bienes. R',notas:'Faltan notas'},
+  {id:66,ciclo:'B',tiempo:'Adviento',dia:'Domingo 4',numero:'88',audio:'id66.mp3',salmodia:'Cantaré eternamente tus misericordias, Señor',salmo:'Cantaré eternamente las misericordias del Señor. R\n<<Sellé una alianza con mi elegido. R>>\nÉl me invocará: <<Tú eres mi padre. R>>',notas:'Faltan notas'},
+  {id:67,ciclo:'B',tiempo:'Cuaresma',dia:'Domingo 1',numero:'24',audio:'id67.mp3',salmodia:'Tus sendas, Señor, son misericordia y lealtad',salmo:'Señor, enseñame tus caminos. R\nRecuerda, Señor, que tu ternura son eternas. R\nEl Señor es bueno y recto. R',notas:'Faltan notas'},
+  {id:68,ciclo:'B',tiempo:'Cuaresma',dia:'Domingo 2',numero:'115',audio:'id68.mp3',salmodia:'Caminaré en presencia del Señor en el país de los vivientes',salmo:'Tenía fe, aún cuando dije:\n!Que desgraciado soy! R\nSeñor, yo soy tu siervo. R\nCumpliré mis votos al Señor. R',notas:'Faltan notas'},
+  {id:69,ciclo:'B',tiempo:'Cuaresma',dia:'Domingo 3',numero:'18',audio:'id69.mp3',salmodia:'Señor tu tienes palabras de vida eterna',salmo:'La ley del Señor es perfecta. R\nLos mandatos del Señor son rectos. R\nLa voluntad del Señor es pura. R\nMás precioso que el oro. R',notas:'Faltan notas'},
+  {id:70,ciclo:'B',tiempo:'Cuaresma',dia:'Domingo 4',numero:'136',audio:'id70.mp3',salmodia:'Que no me olvide de ti, Señor',salmo:'Junto a los canales de Babilonia,\nnos sentamos a llorar con nostalgia de Sión. R\n<<Cantadnos un cantar de Sión.>> R\n!Cómo cantar un cántico del Señor en tierra extranjera! R',notas:'Faltan notas'},
+  {id:71,ciclo:'B',tiempo:'Cuaresma',dia:'Domingo 5',numero:'50',audio:'id71.mp3',salmodia:'Oh Dios, crea en mí un corazón puro',salmo:'Misericordia, Dios mío, por tu bondad. R\nOh Dios, crea en mí un corazón puro. R\nDevuélveme la alegría de tu salvación. R',notas:'Faltan notas'},
+  {id:72,ciclo:'B',tiempo:'Pascua',dia:'Domingo 2',numero:'117',audio:'id72.mp3',salmodia:'Dad gracias al Señor, porque es bueno, porque es eterna su misericordia',salmo:'Diga la casa de Israel: eterna es su misericordia. R\nLa diestra del Señor es poderosa. R\nLa piedra que desecharon los arquitectos. R',notas:'Faltan notas'},
+  {id:73,ciclo:'B',tiempo:'Pascua',dia:'Domingo 3',numero:'4',audio:'id73.mp3',salmodia:'Haz brillar sobre nosotros el resplandor de tu rostro',salmo:'Escuchame cuando te invoco, Dios defensor mío. R\n¿Quién nos hará ver la dicha? R\nEn paz me acuesto y en seguida me duermo. R',notas:'Faltan notas'},
+  {id:74,ciclo:'B',tiempo:'Pascua',dia:'Domingo 4',numero:'117',audio:'id74.mp3',salmodia:'Es el Señor quien lo ha hecho',salmo:'Dad gracias al Señor, porque es bueno. R\nTe doy gracias porque me escuchaste. R\nLa piedra que desecharon los arquitectos. R',notas:'Faltan notas'},
+  {id:75,ciclo:'B',tiempo:'Pascua',dia:'Domingo 5',numero:'21',audio:'id75.mp3',salmodia:'El Señor es mi alabanza en la gran asamblea',salmo:'Los desvalidos comerán hasta saciarse. R\nLo recordarán y volverán al Señor. R\nMe hará vivir él, mi descencia le servirá. R',notas:'Faltan notas'},
+  {id:76,ciclo:'B',tiempo:'Pascua',dia:'Domingo 6',numero:'97',audio:'id76.mp3',salmodia:'El Señor revela a las naciones su salvación',salmo:'Cantad al Señor un cántico nuevo. R\nEl señor da a conocer su salvación. R\nAclama al Señor tierra entera. R',notas:'Faltan notas'},
+  {id:77,ciclo:'B',tiempo:'Pascua',dia:'Domingo Pentecostés',numero:'103',audio:'id77.mp3',salmodia:'Envía tu espíritu, Señor, y renueva la faz de la tierra',salmo:'Bendice alma mía al Señor. R\nLes retiras el aliento y expiran. R\nEnvías tu aliento y los creas. R',notas:'Faltan notas'},
+  {id:78,ciclo:'B',tiempo:'Pascua',dia:'Corpus Christi',numero:'116',audio:'id78.mp3',salmodia:'Alzaré la copa de la salvación e invocaré el nombre del Señor',salmo:'¿Como pagaré al Señor todo el bien que me ha hecho? R\nMucho le cuesta al Señor la muerte de sus fieles. R\nCumpliré mis votos al Señor. R',notas:'Faltan notas'},
+  {id:79,ciclo:'B',tiempo:'Tiempo Ordinario',dia:'Santísima Trinidad',numero:'32',audio:'id79.mp3',salmodia:'Dichoso el pueblo que el Señor se escogió por heredad',salmo:'La palabra del Señor es sincera. R\nLa palabra del Señor hizo el cielo. R\nLos ojos del Señor están puestos en sus fieles. R',notas:'Faltan notas'},
+  {id:80,ciclo:'B',tiempo:'Tiempo Ordinario',dia:'Domingo 2',numero:'39',audio:'id80.mp3',salmodia:'Aquí estoy Señor, para hacer tu voluntad',salmo:'Yo esperaba con ansia al Señor. R\nTu no quieres sacrificios ni ofrendas. R\nHe proclamado tu justicia. R',notas:'Faltan notas'},
+  {id:81,ciclo:'B',tiempo:'Tiempo Ordinario',dia:'Domingo 3',numero:'24',audio:'id81.mp3',salmodia:'Señor, instrúyeme en tus sendas',salmo:'Señor, enséñame tus caminos. R\nRecuerda, Señor, tu ternura. R\nEl Señor es bueno y recto. R',notas:'Faltan notas'},
+  {id:82,ciclo:'B',tiempo:'Tiempo Ordinario',dia:'Domingo 4',numero:'94',audio:'id82.mp3',salmodia:'Escucharemos tu voz, Señor',salmo:'Venid, aclamemos al Señor. R\nEntrad postrémonos por tierra. R\nOjalá escucheis hoy su voz. R',notas:'Faltan notas'},
+  {id:83,ciclo:'B',tiempo:'Tiempo Ordinario',dia:'Domingo 5',numero:'146',audio:'id83.mp3',salmodia:'Alabad al Señor que sana los corazones destrozados',salmo:'Alabad al Señor que la musica es buena. R\nEl sana los corazones destrozados. R\nNuestro Señor es grande y poderoso. R',notas:'Faltan notas'},
+  {id:84,ciclo:'B',tiempo:'Tiempo Ordinario',dia:'Domingo 6',numero:'31',audio:'id84.mp3',salmodia:'Tu eres mi refugio, me rodeas de cantos de liberación',salmo:'Dichoso el que está absuelto de su culpa. R\nHabía pecado, lo reconocí. R\nAlegraos, justos y gozad con el Señor. R',notas:'Faltan notas'},
+  {id:85,ciclo:'B',tiempo:'Tiempo Ordinario',dia:'Domingo 7',numero:'40',audio:'id85.mp3',salmodia:'Sáname, Señor, porque he pecado contra ti',salmo:'Dichoso el que cuida del pobre y del desvalido. R\nEl Señor lo sostendrá en su lecho de dolor. R\nBendito el Señor, Dios de Israel. R',notas:'Faltan notas'},
+  {id:86,ciclo:'B',tiempo:'Tiempo Ordinario',dia:'Domingo 8',numero:'92',audio:'id86.mp3',salmodia:'El Señor es compasivo y misericordioso',salmo:'Bendice, alma mía, al Señor. R\nÉl perdona todas tus culpas. R\nComo un padre siente ternura por sus hijos. R',notas:'Faltan notas'},
+  {id:87,ciclo:'B',tiempo:'Tiempo Ordinario',dia:'Domingo 9',numero:'80',audio:'id87.mp3',salmodia:'Aclamad a Dios, nuestra fuerza',salmo:'Acompañad, tocad los panderos. R\nPorque es una ley de Israel. R\nOigo un lenguaje desconocido. R\nNo tendrás un Dios extraño. R',notas:'Faltan notas'},
+  {id:88,ciclo:'B',tiempo:'Tiempo Ordinario',dia:'Domingo 10',numero:'129',audio:'id88.mp3',salmodia:'Del Señor viene la misericordia, la redención copiosa',salmo:'Desde lo hondo a ti grito, Señor. R\nSi llevas cuenta de los delitos, Señor. R\nMi alma espera en el Señor. R',notas:'Faltan notas'},
+  {id:89,ciclo:'B',tiempo:'Tiempo Ordinario',dia:'Domingo 11',numero:'91',audio:'id89.mp3',salmodia:'Es bueno darte gracias, Señor',salmo:'Es bueno dar gracias al Señor. R\nEl justo crecerá como una palmera. R\nEn la vejez seguirá dando fruto. R',notas:'Faltan notas'},
+  {id:90,ciclo:'B',tiempo:'Tiempo Ordinario',dia:'Domingo 12',numero:'106',audio:'id90.mp3',salmodia:'Dad gracias al Señor, porque es bueno, porque es eterna su misericordia',salmo:'Entraron en naves por el mar. R\nEl habló y levantó un viento tormentoso. R\nApaciguó la tormenta en suave brisa. R',notas:'Faltan notas'},
+  {id:91,ciclo:'B',tiempo:'Tiempo Ordinario',dia:'Domingo 13',numero:'29',audio:'id91.mp3',salmodia:'Te ensalzaré, Señor, porque me has librado',salmo:'Te ensalzaré, Señor, porque me has librado. R\nTañed para el Señor, fieles suyos. R\nEscucha Señor y ten piedad de mí. R',notas:'Faltan notas'},
+  {id:92,ciclo:'B',tiempo:'Tiempo Ordinario',dia:'Domingo 14',numero:'122',audio:'id92.mp3',salmodia:'Misericordia, Señor, misericordia',salmo:'A ti levanto mis ojos. R\nComo están los ojos de los esclava fijos. R\nMisericordia, Señor, misericordia. R',notas:'Faltan notas'},
+  {id:93,ciclo:'B',tiempo:'Tiempo Ordinario',dia:'Domingo 15',numero:'84',audio:'id93.mp3',salmodia:'Muéstranos, Señor, tu misericordia y danos tu salvación',salmo:'Voy a escuchar lo que dice el Señor. R\nLa misericordia y la fidelidad se encuentran. R\nEl Señor nos dará la lluvia. R',notas:'Faltan notas'},
+  {id:94,ciclo:'B',tiempo:'Tiempo Ordinario',dia:'Domingo 16',numero:'22',audio:'id94.mp3',salmodia:'El Señor es mi pastor, nada me falta',salmo:'El Señor es mi pastor, nada me falta. R\nMe conduce hacia fuentes tranquilas. R\nPreparas una mesa ante mí. R',notas:'Faltan notas'},
+  {id:95,ciclo:'B',tiempo:'Tiempo Ordinario',dia:'Domingo 17',numero:'144',audio:'id95.mp3',salmodia:'Abres tú la mano, Señor, y nos sacias de favores',salmo:'Que todas tus criaturas te den gracias. R\nLos ojos de todos te están aguardando. R\nEl Señor es justo en todos sus caminos. R',notas:'Faltan notas'},
+  {id:96,ciclo:'B',tiempo:'Tiempo Ordinario',dia:'Domingo 18',numero:'77',audio:'id96.mp3',salmodia:'El Señor les dio un trigo celeste',salmo:'Lo que oímos y aprendimos. R\nDio orden a las altas nubes. R\nY el hombre comió pan de ángeles. R',notas:'Faltan notas'},
+  {id:97,ciclo:'B',tiempo:'Tiempo Ordinario',dia:'Domingo 19',numero:'33',audio:'id97.mp3',salmodia:'Gustad y ved qué bueno es el Señor',salmo:'Bendigo al Señor en todo momento. R\nProclamad conmigo la grandeza del Señor. R\nGustad y ved qué bueno es el Señor. R',notas:'Faltan notas'},
+  {id:98,ciclo:'B',tiempo:'Tiempo Ordinario',dia:'Domingo 20',numero:'33',audio:'id98.mp3',salmodia:'Gustad y ved qué bueno es el Señor',salmo:'Bendigo al Señor en todo momento. R\nTodos sus santos, temed al Señor. R\nVenid, hijos, escuchadme. R',notas:'Faltan notas'},
+  {id:99,ciclo:'B',tiempo:'Tiempo Ordinario',dia:'Domingo 21',numero:'33',audio:'id99.mp3',salmodia:'Gustad y ved qué bueno es el Señor',salmo:'Bendigo al Señor en todo momento. R\nLos ojos del Señor miran a los justos. R\nAunque el justo sufra muchos males. R',notas:'Faltan notas'},
+  {id:100,ciclo:'B',tiempo:'Tiempo Ordinario',dia:'Domingo 22',numero:'14',audio:'id100.mp3',salmodia:'Señor, ¿quien puede hospedarse en tu tienda?',salmo:'El que procede hondaramente. R\nEl que no hace mal a su prójimo. R\nEl que no presta su dinero a usura. R',notas:'Faltan notas'},
+  {id:101,ciclo:'B',tiempo:'Tiempo Ordinario',dia:'Domingo 23',numero:'145',audio:'id101.mp3',salmodia:'Alaba alma mía al Señor',salmo:'Que mantiene su fidelidad perpetuamente. R\nEl Señor abre los ojos al ciego. R\nSustenta al huérfano y a la viuda. R',notas:'Faltan notas'},
+  {id:102,ciclo:'B',tiempo:'Tiempo Ordinario',dia:'Domingo 24',numero:'144',audio:'id102.mp3',salmodia:'Caminaré en presencia del Señor en el país de la vida',salmo:'Amo al Señor, porque escucha mi voz suplicante. R\nMe envolvían redes de muerte. R\nEl Señor es benigno y justo. R\nCaminaré en presencia del Señor. R',notas:'Faltan notas'},
+  {id:103,ciclo:'B',tiempo:'Tiempo Ordinario',dia:'Domingo 25',numero:'53',audio:'id103.mp3',salmodia:'El Señor sostiene mi vida',salmo:'Oh Dios, sálvame por tu nombre. R\nPorque Dios es mi auxilio. R',notas:'Faltan notas'},
+  {id:104,ciclo:'B',tiempo:'Tiempo Ordinario',dia:'Domingo 26',numero:'18',audio:'id104.mp3',salmodia:'Los mandatos del Señor son rectos y alegran el corazón',salmo:'La ley del Señor es perfecta. R\nLa voluntad del Señor es pura. R\nPreserva a tu siervo de la arrogancia. R',notas:'Faltan notas'},
+  {id:105,ciclo:'B',tiempo:'Tiempo Ordinario',dia:'Domingo 27',numero:'127',audio:'id105.mp3',salmodia:'Que el Señor nos bendiga todos los días de nuestra vida',salmo:'Dichoso el que teme al Señor. R\nTu mujer como parra fecunda. R\nQue el Señor te bendiga desde Sión. R',notas:'Faltan notas'},
+  {id:106,ciclo:'B',tiempo:'Tiempo Ordinario',dia:'Domingo 28',numero:'89',audio:'id106.mp3',salmodia:'Sacianos de tu misericordia y toda nuestra vida será alegría',salmo:'Enséñanos, a calcular nuestros años. R\nPor la mañana sácianos de tu misericordia. R\nQue tus siervos vean tu amor. R',notas:'Faltan notas'},
+  {id:107,ciclo:'B',tiempo:'Tiempo Ordinario',dia:'Domingo 29',numero:'32',audio:'id107.mp3',salmodia:'Que tu misericordia, Señor, venga sobre nosotros como lo esperamos de ti',salmo:'La palabra del Señor es sincera. R\nLos ojos del Señor están puestos en sus fieles. R\nNosotros aguardamos al Señor. R',notas:'Faltan notas'},
+  {id:108,ciclo:'B',tiempo:'Tiempo Ordinario',dia:'Domingo 30',numero:'125',audio:'id108.mp3',salmodia:'El Señor ha estado grande con nosotros y estamos alegres',salmo:'Cuando el Señor cambió la suerte de Sión. R\nEl Señor ha estado grande con nosotros. R\nLos que sembraban con lágrimas cosechan entre cantares. R',notas:'Faltan notas'},
+  {id:109,ciclo:'B',tiempo:'Tiempo Ordinario',dia:'Domingo 34 (Cristo Rey)',numero:'92',audio:'id112.mp3',salmodia:'El Señor reina sobre toda la tierra',salmo:'El Señor reina vestido de majestad. R\nAsí está firme el orbe y no vacila. R\nTus mandatos son fieles y seguros. R',notas:'Faltan notas'},
+  // ── CICLO C ──────────────────────────────────────────────────────────────
+  {id:110,ciclo:'C',tiempo:'Adviento',dia:'Domingo 1',numero:'24',audio:'id113.mp3',salmodia:'A ti, Señor, levanto mi alma',salmo:'Señor, enseñame tus caminos. R\nEl Señor es bueno y recto. R\nLas sendas del Señor son misericordia y lealtad. R',notas:'Faltan notas'},
+  {id:111,ciclo:'C',tiempo:'Adviento',dia:'Domingo 2',numero:'125',audio:'id114.mp3',salmodia:'El Señor ha estado grande con nosotros y estamos alegres',salmo:'Cuando el Señor cambió la suerte de Sión. R\nEl Señor ha estado grande con nosotros. R\nLos que sembraban con lágrimas cosechan entre cantares. R',notas:'Faltan notas'},
+  {id:112,ciclo:'C',tiempo:'Adviento',dia:'Domingo 3',numero:'Is 12',audio:'id115.mp3',salmodia:'Gritad jubilosos: Que grande es en medio de ti el Santo de Israel',salmo:'El Señor es mi Dios y Salvador. R\nDad gracias al Señor. R\nTañed para el Señor, que hizo proezas. R',notas:'Faltan notas'},
+  {id:113,ciclo:'C',tiempo:'Adviento',dia:'Domingo 4',numero:'79',audio:'id116.mp3',salmodia:'Oh Dios, restáuranos, que brille tu rostro y nos salve',salmo:'Pastor de Israel, escucha. R\nDios de los ejércitos, vuelvete. R\nQue tu mano proteja al escogido. R',notas:'Faltan notas'},
+  {id:114,ciclo:'C',tiempo:'Cuaresma',dia:'Domingo 1',numero:'90',audio:'id117.mp3',salmodia:'Está conmigo, Señor, en la tribulación',salmo:'Tú que habitas en el amparo del Altísimo. R\nNo se te acercará la desgracia. R\nTe llevarán en sus palmas. R\n<<Se puso junto a mí: lo libraré.>> R',notas:'Faltan notas'},
+  {id:115,ciclo:'C',tiempo:'Cuaresma',dia:'Domingo 2',numero:'26',audio:'id118.mp3',salmodia:'El Señor es mi luz y mi salvación',salmo:'El Señor es mi luz y mi salvación. R\nEscúchame, Señor, que te llamo. R\nTu rostro buscaré, Señor. R\nEspero gozar de la dicha del Señor. R',notas:'Faltan notas'},
+  {id:116,ciclo:'C',tiempo:'Cuaresma',dia:'Domingo 3',numero:'102',audio:'id139.mp3',salmodia:'El Señor es compasivo y misericordioso',salmo:'Bendice alma mía al Señor. R\nÉl perdona todos tus culpas. R\nEl Señor hace justicia y defiende a todos los oprimidos. R\nEl Señor es compasivo y misericordioso. R',notas:'Faltan notas'},
+  {id:117,ciclo:'C',tiempo:'Cuaresma',dia:'Domingo 4',numero:'33',audio:'id120.mp3',salmodia:'Gustad y ver que bueno es el Señor',salmo:'Bendigo al Señor en todo momento. R\nProclamad conmigo la grandeza del Señor. R\nContempladlo, y quedaréis radiantes. R',notas:'Faltan notas'},
+  {id:118,ciclo:'C',tiempo:'Cuaresma',dia:'Domingo 5',numero:'125',audio:'id121.mp3',salmodia:'El Señor ha estado grande con nosotros y estamos alegres',salmo:'Cuando el Señor cambió la suerte de Sión. R\nEl Señor ha estado grande con nosotros. R\nLos que sembraban con lágrimas cosechan entre cantares. R',notas:'Faltan notas'},
+  {id:119,ciclo:'C',tiempo:'Semana Santa',dia:'Domingo de Resurrección',numero:'117',audio:'id122.mp3',salmodia:'Este es día que actuó el Señor, sea nuestra alegría y nuestro gozo',salmo:'Que los diga la casa de Israel: es eterna su misericordia.\nLa piedra que desecharon los arquitectos es ahora la piedra angular.\nEste es el día que actuó el Señor.',notas:'Faltan notas'},
+  {id:120,ciclo:'C',tiempo:'Pascua',dia:'Domingo 2',numero:'117',audio:'id123.mp3',salmodia:'Dad gracias al Señor porque es bueno, porque es eterna su misericordia',salmo:'Diga la casa de Israel: es eterna su misericordia. R\nLa piedra que desecharon los arquitectos. R\nEste es el día que actuó el Señor. R',notas:'Faltan notas'},
+  {id:121,ciclo:'C',tiempo:'Pascua',dia:'Domingo 3',numero:'29',audio:'id124.mp3',salmodia:'Te ensalzaré Señor, porque me has librado',salmo:'Te ensalzaré, Señor, porque me has librado. R\nTañed para el Señor, fieles suyos. R\nEscucha Señor, y ten piedad de mí. R',notas:'Faltan notas'},
+  {id:122,ciclo:'C',tiempo:'Pascua',dia:'Domingo 4',numero:'99',audio:'id125.mp3',salmodia:'Nosotros somos su pueblo y ovejas de su rebaño',salmo:'¡Aclamad al Señor, tierra entera! R\nSabed que el Señor es Dios. R\nEl Señor es bueno. R',notas:'Faltan notas'},
+  {id:123,ciclo:'C',tiempo:'Pascua',dia:'Domingo 5',numero:'144',audio:'id126.mp3',salmodia:'Bendeciré tu nombre por siempre, Dios mío, mi rey',salmo:'El Señor es clemente y misericordioso. R\nQue todas tus criaturas te den gracias. R\nTu reinado es un reinado perpetuo. R',notas:'Do  Sol  La  Fa  Sol'},
+  {id:124,ciclo:'C',tiempo:'Pascua',dia:'Domingo 6',numero:'66',audio:'id127.mp3',salmodia:'Oh Dios, que te alaben los pueblos, que todos los pueblos te alaben',salmo:'El Señor tenga piedad y nos bendiga. R\nQue canten de alegría las naciones. R\nOh Dios, que te alaben los pueblos. R',notas:'Re  La  Re  Sol'},
+  {id:125,ciclo:'C',tiempo:'Pascua',dia:'Domingo 7/Ascensión del Señor',numero:'46',audio:'id128.mp3',salmodia:'Dios asciende entre aclamaciones, El Señor, al son de trompetas',salmo:'Pueblos todos batid palmas. R\nDios asciende entre aclamaciones. R\nPorque Dios es el rey del mundo. R',notas:'Mi  Si  Do#m  Fa#m'},
+  {id:126,ciclo:'C',tiempo:'Pascua',dia:'Domingo Pentecostés',numero:'103',audio:'id129.mp3',salmodia:'Envía tu espíritu, Señor, y renueva la faz de la tierra',salmo:'Bendice alma mía al Señor. R\nEnvías tu aliento y los creas. R\nGloria a Dios por siempre. R',notas:'Re  Sim  Sol  La  Re'},
+  {id:127,ciclo:'C',tiempo:'Tiempo Ordinario',dia:'Santísima Trinidad',numero:'8',audio:'id128.mp3',salmodia:'Señor, Dios nuestro, que admirable es tu nombre en toda la tierra',salmo:'Cuando contemplo el cielo, obra de tus dedos. R\nLo hiciste poco inferior a los ángeles. R\nTodo lo sometiste bajo sus pies. R',notas:'La  Fa#m  La  Mi'},
+  {id:128,ciclo:'C',tiempo:'Tiempo Ordinario',dia:'Corpus Christi',numero:'109',audio:'id129.mp3',salmodia:'Tú eres sacerdote eterno, según el rito de Melquisedec',salmo:'Oráculo del Señor a mi Señor. R\nDesde Sión extenderá el Señor el poder de tu cetro. R\nEres príncipe desde el día de tu nacimiento. R',notas:'Do  Fa  Do  La'},
+  {id:129,ciclo:'C',tiempo:'Tiempo Ordinario',dia:'Domingo 2',numero:'95',audio:'id130.mp3',salmodia:'Contad las maravillas del Señor a todas las naciones',salmo:'Cantad al Señor un cántico nuevo. R\nProclamad día tras día su victoria. R\nPostraos ante el Señor en el atrio sagrado. R',notas:'Faltan notas'},
+  {id:130,ciclo:'C',tiempo:'Tiempo Ordinario',dia:'Domingo 3',numero:'18',audio:'id131.mp3',salmodia:'Tus palabras, Señor, son espíritu y vida',salmo:'La ley del Señor es perfecta. R\nLos mandatos del Señor son rectos. R\nLa voluntad del Señor es pura. R',notas:'Faltan notas'},
+  {id:131,ciclo:'C',tiempo:'Tiempo Ordinario',dia:'Domingo 4',numero:'70',audio:'id132.mp3',salmodia:'Mi boca proclamará tu salvación',salmo:'A ti, Señor, me acojo. R\nSé tu mi roca de refugio. R\nPorque tú, Dios mío, fuiste mi esperanza. R\nMi boca contará tu auxilio. R',notas:'Faltan notas'},
+  {id:132,ciclo:'C',tiempo:'Tiempo Ordinario',dia:'Domingo 5',numero:'137',audio:'id133.mp3',salmodia:'Delante de los ángeles tañeré para ti, Señor',salmo:'Te doy gracias, Señor, de todo corazón. R\nDaré gracias a tu nombre. R\nQue te den gracias los reyes de la tierra. R\nSeñor, tu misericordia es eterna. R',notas:'Faltan notas'},
+  {id:133,ciclo:'C',tiempo:'Tiempo Ordinario',dia:'Domingo 6',numero:'1',audio:'id135.mp3',salmodia:'Dichoso el hombre que puesto su confianza en el Señor',salmo:'Dichoso el hombre que no sigue el consejo de los impíos. R\nSerá como un árbol plantado al borde de la acequia. R\nPorque el Señor protege el camino de los justos. R',notas:'Faltan notas'},
+  {id:134,ciclo:'C',tiempo:'Tiempo Ordinario',dia:'Domingo 7',numero:'102',audio:'id54.mp3',salmodia:'El Señor es compasivo y misericordioso',salmo:'Bendice alma mía al Señor. R\nEl Señor es compasivo y misericordioso. R\nComo dista el oriente del ocaso. R',notas:'Faltan notas'},
+  {id:135,ciclo:'C',tiempo:'Ordinario',dia:'Domingo 8',numero:'91',audio:'id135.mp3',salmodia:'Es bueno darte gracias, Señor',salmo:'Es bueno darte gracias al Señor. R\nEl justo crecerá como una palmera. R\nEn la vejez seguirá dando fruto. R',notas:'Faltan notas'},
+  {id:136,ciclo:'C',tiempo:'Ordinario',dia:'Domingo 9',numero:'116',audio:'id136.mp3',salmodia:'Id al mundo entero y proclamad el Evangelio',salmo:'Alabad al Señor, todas las naciones. R\nFirme es su misericordia con nosotros. R',notas:'Faltan notas'},
+  {id:137,ciclo:'C',tiempo:'Tiempo Ordinario',dia:'Domingo 10',numero:'29',audio:'id137.mp3',salmodia:'',salmo:'Te ensalzaré, Señor, porque me has librado. R\nTañed para el Señor, fieles suyos. R',notas:'Faltan notas'},
+  {id:138,ciclo:'C',tiempo:'Tiempo Ordinario',dia:'Domingo 11',numero:'31',audio:'id138.mp3',salmodia:'Misericordia, Señor, hemos pecado',salmo:'Dichoso el que está absuelto de su culpa. R\nHabía pecado, lo reconocí. R\nTú eres mi refugio, me libras del peligro. R',notas:'Faltan notas'},
+  {id:139,ciclo:'C',tiempo:'Tiempo Ordinario',dia:'Domingo 12',numero:'62',audio:'id139.mp3',salmodia:'Mi alma tiene sed de ti, Señor Dios mío',salmo:'Oh Dios, tú eres mi Dios, por ti madrugo. R\n¡Cómo te contemplaba en el santuario! R\nToda mi vida te bendeciré. R\nPorque fuiste mi auxilio. R',notas:'Faltan notas'},
+];
+
+// ─── STATE ──────────────────────────────────────────────────────────────────
+let filtered = [...SALMOS];
+let activeCiclo = 'ALL';
+let currentId = null;
+let editMode = false;
+
+// ─── HELPERS ────────────────────────────────────────────────────────────────
+function tiempoKey(t){
+  return t.replace(/\s+/g,'');
+}
+function tiempoClass(t){
+  const k = tiempoKey(t);
+  const map = {Adviento:'t-Adviento',Navidad:'t-Navidad',Cuaresma:'t-Cuaresma',SemanaSanta:'t-SemanaSanta',Pascua:'t-Pascua',TiempoOrdinario:'t-TiempoOrdinario',Ordinario:'t-Ordinario'};
+  return map[k] || 't-Other';
+}
+function tiempoColor(t){
+  const map = {Adviento:'#4A148C',Navidad:'#F9A825',Cuaresma:'#6A1B9A','Semana Santa':'#B71C1C',Pascua:'#F57F17','Tiempo Ordinario':'#2E7D32',Ordinario:'#388E3C','Propio de los Santos':'#00838F'};
+  return map[t] || '#546E7A';
+}
+
+// ─── NOTAS / CHORD-SHEET HELPERS ─────────────────────────────────────────────
+// notas can be (a) a token array from the DB: tokens concatenate per line,
+// the token '\n' separates lines, and each line aligns 1:1 with a text line
+// (salmodia lines first, then salmo lines); or (b) a plain '\n' string (legacy).
+function notasToLines(notas){
+  if(notas==null) return [];
+  if(Array.isArray(notas)){
+    // Expandir tokens fusionados antes de concatenar
+    const expanded = expandTokenArray(notas);
+    const lines=[]; let cur='';
+    for(const t of expanded){ if(t==='\n'){ lines.push(cur); cur=''; } else cur+=String(t); }
+    lines.push(cur);
+    if(lines.length===1 && lines[0].trim()==='Faltan notas') return [];
+    return lines;
+  }
+  const s=String(notas);
+  if(s.trim()==='Faltan notas' || s==='') return [];
+  // a JSON array stored as text
+  if(s.trim().startsWith('[')){ try{ return notasToLines(JSON.parse(s)); }catch(e){} }
+  return s.split('\n');
+}
+function normalizeSalmo(s){
+  if(s.notasLines==null) s.notasLines = notasToLines(s.notas);
+  return s;
+}
+function chordLinesOf(s){
+  return (s.notasLines!=null) ? s.notasLines : notasToLines(s.notas);
+}
+function hasChords(s){
+  return chordLinesOf(s).some(x=>x.trim()!=='');
+}
+function hasAudio(s){
+  // Audio real = "DriveFileID|nombre.ext". Un placeholder tipo "id120.mp3" NO cuenta.
+  return !!(s.audio && s.audio.includes('|'));
+}
+function textLinesOf(s){
+  const a=[];
+  if(s.salmodia) a.push(...s.salmodia.split('\n'));
+  if(s.salmo) a.push(...s.salmo.split('\n'));
+  return a;
+}
+function lineToTokens(line){
+  if(line==='') return [''];
+  return line.match(/ +|[^ ]+/g) || [''];
+}
+function linesToNotasArray(lines){
+  if(!lines || !lines.length || lines.every(l=>String(l).trim()==='')) return ['Faltan notas'];
+  const out=[];
+  lines.forEach((ln,i)=>{ out.push(...lineToTokens(String(ln))); if(i<lines.length-1) out.push('\n'); });
+  return out;
+}
+function renderChordSheet(s){
+  const tlines = textLinesOf(s);
+  const clines = chordLinesOf(s);
+  const antCount = s.salmodia ? s.salmodia.split('\n').length : 0;
+  if(!tlines.length) return '<div style="color:#aaa;font-size:13px">Sin texto</div>';
+  const n = Math.max(tlines.length, clines.length);
+  let html='<div class="chordsheet">';
+  for(let i=0;i<n;i++){
+    const tl = (i<tlines.length) ? tlines[i] : null;
+    const cl = clines[i] || '';
+    const isAnt = i < antCount;
+    html += `<div class="cs-line${isAnt?' cs-ant':''}">`
+         +    `<div class="cs-chords">${escHtml(cl)||'&nbsp;'}</div>`
+         +    (tl==null ? '' : `<div class="cs-text">${escHtml(tl)||'&nbsp;'}</div>`)
+         +  `</div>`;
+  }
+  html+='</div>';
+  return html;
+}
+
+// ─── AUDIO · GOOGLE DRIVE ────────────────────────────────────────────────────
+// La carpeta debe estar compartida como "Cualquier persona con el enlace: Lector"
+const DRIVE_API_KEY   = 'AIzaSyAlIprwrXc8VKI4DElEb5gL6CbL_JRNmyY';
+const DRIVE_FOLDER_ID = '1czgjFibCrBLGqSd41Nk6V0xeQZL_HNgl';
+
+// El campo audio guarda "IDdeDrive|nombre.mp3". Valores antiguos sin "|" se
+// consideran solo referencia (sin audio real asignado).
+function audioInfo(s){
+  const v = (s.audio||'').trim();
+  if(!v) return null;
+  const p = v.indexOf('|');
+  if(p > 0) return { id: v.slice(0,p), name: v.slice(p+1) };
+  return { id: null, name: v };
+}
+function driveAudioUrl(id){
+  return 'https://www.googleapis.com/drive/v3/files/' + encodeURIComponent(id) + '?alt=media&key=' + DRIVE_API_KEY;
+}
+let _driveFiles = null;
+async function driveList(force){
+  if(_driveFiles && !force) return _driveFiles;
+  let files = [], token = '';
+  do{
+    const url = 'https://www.googleapis.com/drive/v3/files'
+      + '?q=' + encodeURIComponent(`'${DRIVE_FOLDER_ID}' in parents and trashed=false`)
+      + '&fields=' + encodeURIComponent('nextPageToken,files(id,name,mimeType,size)')
+      + '&pageSize=1000&orderBy=name&key=' + DRIVE_API_KEY
+      + (token ? '&pageToken=' + token : '');
+    const r = await fetch(url);
+    if(!r.ok){
+      let msg = 'HTTP ' + r.status;
+      try{ const j = await r.json(); if(j.error && j.error.message) msg = j.error.message; }catch(e){}
+      throw new Error(msg);
+    }
+    const j = await r.json();
+    files = files.concat(j.files || []);
+    token = j.nextPageToken || '';
+  }while(token);
+  const AUD = /\.(mp3|m4a|aac|ogg|opus|wav|wma|flac)$/i;
+  _driveFiles = files.filter(f => (f.mimeType||'').startsWith('audio/') || AUD.test(f.name||''));
+  return _driveFiles;
+}
+function fmtSize(b){
+  b = Number(b)||0;
+  if(!b) return '';
+  if(b < 1048576) return Math.round(b/1024) + ' KB';
+  return (b/1048576).toFixed(1) + ' MB';
+}
+
+// ── Selector de audio ──
+let _audioPickerFiles = [];
+async function openAudioPicker(){
+  document.getElementById('audioModal').classList.add('open');
+  document.getElementById('audioFilter').value = '';
+  document.getElementById('audioList').innerHTML = '<div class="audio-empty">Cargando lista de Drive…</div>';
+  try{
+    _audioPickerFiles = await driveList(false);
+    audioRenderList();
+  }catch(err){
+    document.getElementById('audioList').innerHTML =
+      '<div class="audio-empty">⚠ No se pudo leer la carpeta de Drive.<br><br>' + escHtml(err.message) +
+      '<br><br>Comprueba la conexión a internet y que la carpeta está compartida como «Cualquier persona con el enlace».</div>';
+  }
+}
+async function audioRefresh(){
+  document.getElementById('audioList').innerHTML = '<div class="audio-empty">Actualizando…</div>';
+  try{
+    _audioPickerFiles = await driveList(true);
+    audioRenderList();
+    toast('Lista actualizada · ' + _audioPickerFiles.length + ' audios');
+  }catch(err){
+    document.getElementById('audioList').innerHTML = '<div class="audio-empty">⚠ ' + escHtml(err.message) + '</div>';
+  }
+}
+function audioRenderList(){
+  const q = (document.getElementById('audioFilter').value||'').toLowerCase();
+  const list = _audioPickerFiles.filter(f => f.name.toLowerCase().includes(q));
+  const el = document.getElementById('audioList');
+  if(!list.length){
+    el.innerHTML = '<div class="audio-empty">' + (_audioPickerFiles.length
+      ? 'Ningún audio coincide con el filtro.'
+      : 'La carpeta no tiene audios todavía.<br>Súbelos desde la app de Google Drive y pulsa «Actualizar lista».') + '</div>';
+    return;
+  }
+  _audioShown = list;
+  el.innerHTML = list.map((f,i) =>
+    `<div class="audio-item" onclick="pickAudioIdx(${i})">🎵 <span>${escHtml(f.name)}</span><span class="sz">${fmtSize(f.size)}</span></div>`
+  ).join('');
+}
+let _audioShown = [];
+function pickAudioIdx(i){
+  const f = _audioShown[i];
+  if(f) pickAudio(f.id, f.name);
+}
+function pickAudio(id, name){
+  const inp = document.getElementById('eAudio');
+  if(inp){ inp.value = id + '|' + name; audioUpdateEditUI(); }
+  closeAudioPicker();
+  toast('Audio seleccionado: ' + name);
+}
+function closeAudioPicker(){
+  document.getElementById('audioModal').classList.remove('open');
+}
+
+// ── Pegar enlace de Drive (plan B) ──
+async function audioPasteLink(){
+  const raw = prompt('Pega el enlace de Google Drive del audio:');
+  if(!raw) return;
+  let id = null;
+  let m = raw.match(/\/(?:file\/)?d\/([-\w]{20,})/) || raw.match(/[?&]id=([-\w]{20,})/);
+  if(m) id = m[1];
+  else if(/^[-\w]{20,}$/.test(raw.trim())) id = raw.trim();
+  if(!id){ alert('No he podido reconocer un enlace de Drive válido.'); return; }
+  let name = 'audio';
+  try{
+    const r = await fetch('https://www.googleapis.com/drive/v3/files/' + id + '?fields=name&key=' + DRIVE_API_KEY);
+    if(r.ok){ const j = await r.json(); if(j.name) name = j.name; }
+  }catch(e){}
+  const inp = document.getElementById('eAudio');
+  if(inp){ inp.value = id + '|' + name; audioUpdateEditUI(); }
+  toast('Audio asignado: ' + name);
+}
+function audioClear(){
+  const inp = document.getElementById('eAudio');
+  if(inp){ inp.value = ''; audioUpdateEditUI(); }
+}
+function audioUpdateEditUI(){
+  const inp = document.getElementById('eAudio');
+  const cur = document.getElementById('eAudioCur');
+  const ply = document.getElementById('eAudioPlayer');
+  if(!inp || !cur) return;
+  const ai = audioInfo({audio: inp.value});
+  if(ai && ai.id){
+    cur.textContent = '🎵 ' + ai.name;
+    if(ply){ ply.style.display = ''; ply.src = driveAudioUrl(ai.id); }
+  } else if(ai){
+    cur.textContent = ai.name + '  (solo referencia, sin audio asignado)';
+    if(ply){ ply.style.display = 'none'; ply.removeAttribute('src'); }
+  } else {
+    cur.textContent = 'Sin audio';
+    if(ply){ ply.style.display = 'none'; ply.removeAttribute('src'); }
+  }
+}
+
+// ─── SQLITE IMPORT / EXPORT (sql.js, loaded on demand) ───────────────────────
+const SQLJS_BASE='https://sql.js.org/dist/';
+let _SQL=null;
+async function loadSQL(){
+  if(_SQL) return _SQL;
+  if(typeof initSqlJs==='undefined'){
+    await new Promise((resolve,reject)=>{
+      const sc=document.createElement('script');
+      sc.src=SQLJS_BASE+'sql-wasm.js';
+      sc.onload=resolve;
+      sc.onerror=()=>reject(new Error('No se pudo cargar sql.js. Comprueba la conexión a internet.'));
+      document.head.appendChild(sc);
+    });
+  }
+  _SQL=await initSqlJs({locateFile:f=>SQLJS_BASE+f});
+  return _SQL;
+}
+// URL de la base de datos maestra en GitHub (archivo crudo)
+const GITHUB_DB_URL='https://raw.githubusercontent.com/maclecay/Salmosapp/main/salmos.db';
+
+// Carga la BD maestra desde GitHub (bajo demanda, con botón).
+async function loadFromGitHub(){
+  if(SALMOS.length){
+    if(!confirm('Esto reemplazará lo que tienes cargado ahora con la versión de GitHub.\n¿Continuar?')) return;
+  }
+  try{
+    toast('Descargando de GitHub…');
+    const resp=await fetch(GITHUB_DB_URL+'?t='+Date.now(), {cache:'no-store'});
+    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    const buf=new Uint8Array(await resp.arrayBuffer());
+    const SQL=await loadSQL();
+    parseAndLoadDB(SQL, buf);
+  }catch(err){
+    console.error(err);
+    alert('No se pudo descargar de GitHub:\n'+err.message+'\n\nComprueba tu conexión a internet.');
+  }
+}
+
+// Parseo común (usado por importDB y loadFromGitHub)
+function parseAndLoadDB(SQL, buf){
+    const db=new SQL.Database(buf);
+    const res=db.exec("SELECT id,ciclo,tiempo,dia,numero,audio,salmodia,salmo,notas FROM salmos ORDER BY id");
+    if(!res.length){ db.close(); toast('La tabla «salmos» está vacía.'); return; }
+    const cols=res[0].columns, rows=res[0].values;
+    const ix=Object.fromEntries(cols.map((c,i)=>[c,i]));
+    const out=rows.map(r=>{
+      const raw=r[ix.notas];
+      const s={
+        id:Number(r[ix.id]),
+        ciclo:r[ix.ciclo]||'',
+        tiempo:r[ix.tiempo]||'',
+        dia:r[ix.dia]||'',
+        numero:String(r[ix.numero]==null?'':r[ix.numero]),
+        audio:r[ix.audio]||'',
+        salmodia:r[ix.salmodia]||'',
+        salmo:r[ix.salmo]||'',
+        notas:raw
+      };
+      s.notasLines=notasToLines(raw);
+      return s;
+    });
+    db.close();
+    SALMOS.length=0; SALMOS.push(...out);
+    activeCiclo='ALL';
+    document.querySelectorAll('.ciclo-tab').forEach(t=>t.classList.remove('active'));
+    const allTab=document.querySelector('[data-ciclo="ALL"]'); if(allTab) allTab.classList.add('active');
+    const banner=document.getElementById('session-banner'); if(banner) banner.style.display='none';
+    render();
+    lsSave();
+    const conAcordes=out.filter(hasChords).length;
+    const conAudio=out.filter(hasAudio).length;
+    toast(`✓ ${out.length} salmos cargados · ${conAcordes} con acordes · ${conAudio} con audio`);
+}
+
+async function importDB(ev){
+  const file=ev.target.files[0]; ev.target.value='';
+  if(!file) return;
+  const ext=file.name.split('.').pop().toLowerCase();
+  if(!['db','sqlite','sqlite3'].includes(ext)){
+    alert('Por favor selecciona un archivo .db o .sqlite\n(seleccionado: '+file.name+')');
+    return;
+  }
+  try{
+    toast('Cargando base de datos…');
+    const SQL=await loadSQL();
+    const buf=new Uint8Array(await file.arrayBuffer());
+    const db=new SQL.Database(buf);
+    const res=db.exec("SELECT id,ciclo,tiempo,dia,numero,audio,salmodia,salmo,notas FROM salmos ORDER BY id");
+    if(!res.length){ db.close(); toast('La tabla «salmos» está vacía.'); return; }
+    const cols=res[0].columns, rows=res[0].values;
+    const ix=Object.fromEntries(cols.map((c,i)=>[c,i]));
+    const out=rows.map(r=>{
+      const raw=r[ix.notas];
+      const s={
+        id:Number(r[ix.id]),
+        ciclo:r[ix.ciclo]||'',
+        tiempo:r[ix.tiempo]||'',
+        dia:r[ix.dia]||'',
+        numero:String(r[ix.numero]==null?'':r[ix.numero]),
+        audio:r[ix.audio]||'',
+        salmodia:r[ix.salmodia]||'',
+        salmo:r[ix.salmo]||'',
+        notas:raw
+      };
+      s.notasLines=notasToLines(raw);
+      return s;
+    });
+    db.close();
+    SALMOS.length=0; SALMOS.push(...out);
+    activeCiclo='ALL';
+    document.querySelectorAll('.ciclo-tab').forEach(t=>t.classList.remove('active'));
+    const allTab=document.querySelector('[data-ciclo="ALL"]'); if(allTab) allTab.classList.add('active');
+    document.getElementById('session-banner').style.display='none';
+    render();
+    lsSave();
+    const conAcordes=out.filter(hasChords).length;
+    const conAudio=out.filter(hasAudio).length;
+    toast(`✓ ${out.length} salmos cargados · ${conAcordes} con acordes · ${conAudio} con audio`);
+  }catch(err){
+    console.error(err);
+    alert('Error al importar la base de datos:\n'+err.message);
+  }
+}
+async function exportDB(){
+  try{
+    if(!SALMOS.length){ toast('No hay datos para exportar.'); return; }
+    toast('Generando base de datos…');
+    const SQL=await loadSQL();
+    const db=new SQL.Database();
+    db.run("CREATE TABLE salmos (id INTEGER PRIMARY KEY, ciclo TEXT, tiempo TEXT, dia TEXT, numero TEXT, audio TEXT, salmodia TEXT, salmo TEXT, notas TEXT);");
+    const stmt=db.prepare("INSERT INTO salmos VALUES (?,?,?,?,?,?,?,?,?)");
+    SALMOS.forEach(s=>{
+      const notasJson=JSON.stringify(linesToNotasArray(chordLinesOf(s)));
+      stmt.run([s.id, s.ciclo||'', s.tiempo||'', s.dia||'', String(s.numero==null?'':s.numero), s.audio||'', s.salmodia||'', s.salmo||'', notasJson]);
+    });
+    stmt.free();
+    const data=db.export(); db.close();
+    const blob=new Blob([data],{type:'application/octet-stream'});
+    const ts=new Date().toISOString().slice(0,16).replace('T','_').replace(/:/g,'-');
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=`Salmos_backup_${ts}.db`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+    lsSave();
+    toast('✓ Base de datos exportada');
+  }catch(err){
+    console.error(err);
+    alert('Error al exportar la base de datos:\n'+err.message);
+  }
+}
+function toast(msg){
+  let el=document.getElementById('toast');
+  if(!el){ el=document.createElement('div'); el.id='toast'; el.className='toast'; document.body.appendChild(el); }
+  el.textContent=msg; el.classList.add('show');
+  clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),2600);
+}
+
+// ─── RENDER ─────────────────────────────────────────────────────────────────
+function render(){
+  const q = document.getElementById('search').value.toLowerCase();
+  const ft = document.getElementById('filterTiempo').value;
+  const fa = document.getElementById('filterAudio').value;
+  const sort = document.getElementById('sortBy').value;
+
+  filtered = SALMOS.filter(s=>{
+    if(activeCiclo !== 'ALL' && s.ciclo !== activeCiclo) return false;
+    if(ft && s.tiempo !== ft) return false;
+    if(fa === 'con' && !hasAudio(s)) return false;
+    if(fa === 'sin' && hasAudio(s)) return false;
+    if(q){
+      return s.salmodia.toLowerCase().includes(q) ||
+             s.salmo.toLowerCase().includes(q) ||
+             s.numero.toLowerCase().includes(q) ||
+             s.dia.toLowerCase().includes(q);
+    }
+    return true;
+  });
+
+  filtered.sort((a,b)=>{
+    if(sort==='id') return a.id - b.id;
+    if(sort==='numero') return a.numero.localeCompare(b.numero, undefined, {numeric:true});
+    if(sort==='salmodia') return a.salmodia.localeCompare(b.salmodia);
+    return 0;
+  });
+
+  document.getElementById('countLabel').textContent = filtered.length + ' salmos';
+
+  const grid = document.getElementById('grid');
+  if(!filtered.length){
+    grid.innerHTML = '<div class="empty">No se encontraron salmos</div>';
+    return;
+  }
+  grid.innerHTML = filtered.map(s=>{
+    const hasNotas = hasChords(s);
+    return `<div class="card" onclick="openModal(${s.id})">
+      <div class="card-badge ${tiempoClass(s.tiempo)}"></div>
+      <div class="card-body">
+        <div class="card-tiempo">${s.tiempo} · Ciclo ${s.ciclo}</div>
+        <div class="card-dia">${s.dia}</div>
+        <div class="card-salmo">Salmo ${s.numero}</div>
+        <div class="card-ant">${s.salmodia||'(sin antífona)'}</div>
+        <span class="card-notas-badge ${hasNotas?'':'card-notas-missing'}">${hasNotas?'♪ Con notas':'Sin notas'}</span>
+        <span class="card-audio-badge ${hasAudio(s)?'':'card-audio-missing'}">${hasAudio(s)?'🔊 Con audio':'Sin audio'}</span>
+      </div>
+      <div class="card-arrow">›</div>
+    </div>`;
+  }).join('');
+}
+
+// ─── FILTERS ────────────────────────────────────────────────────────────────
+document.getElementById('search').addEventListener('input', render);
+document.getElementById('filterTiempo').addEventListener('change', render);
+document.getElementById('filterAudio').addEventListener('change', render);
+document.getElementById('sortBy').addEventListener('change', render);
+
+document.querySelectorAll('.ciclo-tab').forEach(tab=>{
+  tab.addEventListener('click',()=>{
+    document.querySelectorAll('.ciclo-tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    activeCiclo = tab.dataset.ciclo;
+    render();
+  });
+});
+
+function clearFilters(){
+  document.getElementById('search').value='';
+  document.getElementById('filterTiempo').value='';
+  document.getElementById('filterAudio').value='';
+  document.getElementById('sortBy').value='id';
+  activeCiclo='ALL';
+  document.querySelectorAll('.ciclo-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelector('[data-ciclo="ALL"]').classList.add('active');
+  render();
+}
+
+// ─── MODAL ──────────────────────────────────────────────────────────────────
+function openModal(id){
+  currentId = id;
+  editMode = false;
+  const s = SALMOS.find(x=>x.id===id);
+  if(!s) return;
+  renderModal(s);
+  document.getElementById('overlay').classList.add('open');
+}
+
+function renderModal(s){
+  const color = tiempoColor(s.tiempo);
+  document.getElementById('mBadge').style.background = color;
+  document.getElementById('mBadge').textContent = s.numero;
+  document.getElementById('mTitle').textContent = s.dia;
+  document.getElementById('mSubtitle').textContent = s.tiempo + ' · Ciclo ' + s.ciclo;
+
+  const hasNotas = hasChords(s);
+
+  if(!editMode){
+    document.getElementById('mBody').innerHTML = `
+      <div class="field-group">
+        <div class="field-label">Antífona</div>
+        <div class="field-view ant">${escHtml(s.salmodia||'—')}</div>
+      </div>
+      <div class="field-group">
+        <div class="field-label">Salmo con acordes</div>
+        ${hasNotas
+          ? renderChordSheet(s)
+          : `<div class="field-view" style="font-family:'Courier New',monospace;white-space:pre-wrap">${escHtml(s.salmo)}</div>
+             <div style="color:#e65100;font-size:12px;margin-top:8px">⚠ Sin acordes registrados</div>`}
+      </div>
+      <div class="field-group">
+        <div class="field-label">Audio</div>
+        ${(()=>{ const ai = audioInfo(s);
+          if(ai && ai.id) return `<div class="field-view">🎵 ${escHtml(ai.name)}
+            <audio class="player" controls preload="none" src="${escAttr(driveAudioUrl(ai.id))}"></audio></div>`;
+          if(ai) return `<div class="field-view">${escHtml(ai.name)}
+            <div style="color:#e65100;font-size:12px;margin-top:6px">⚠ Solo referencia — sin audio asignado en Drive</div></div>`;
+          return `<div class="field-view">—</div>`; })()}
+      </div>`;
+    document.getElementById('btnEdit').style.display='';
+    document.getElementById('btnSave').style.display='none';
+    document.getElementById('btnCancel').style.display='none';
+  } else {
+    document.getElementById('mBody').innerHTML = `
+      <div class="field-group">
+        <div class="field-label">Día litúrgico</div>
+        <input class="field-input" id="eDia" value="${escAttr(s.dia)}">
+      </div>
+      <div class="field-group">
+        <div class="field-label">Tiempo litúrgico</div>
+        <select class="field-input" id="eTiempo">
+          ${['Adviento','Navidad','Cuaresma','Semana Santa','Pascua','Tiempo Ordinario','Propio de los Santos'].map(t=>`<option${t===s.tiempo?' selected':''}>${t}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field-group">
+        <div class="field-label">Número de salmo</div>
+        <input class="field-input" id="eNumero" value="${escAttr(s.numero)}">
+      </div>
+      <div class="field-group">
+        <div class="field-label">Antífona</div>
+        <textarea class="field-textarea" id="eSalmodia">${escHtml(s.salmodia)}</textarea>
+      </div>
+      <div class="field-group">
+        <div class="field-label">Texto del salmo</div>
+        <textarea class="field-textarea tall" id="eSalmo">${escHtml(s.salmo)}</textarea>
+      </div>
+      <div class="field-group">
+        <div class="field-label">Acordes + Texto intercalado</div>
+
+        <div class="ce-wrap" id="ce-wrap"></div>
+        <button class="btn btn-cancel btn-addline" onclick="ceAddLine()">+ Añadir línea</button>
+      </div>
+      <div class="field-group">
+        <div class="field-label">Audio</div>
+        <input type="hidden" id="eAudio" value="${escAttr(s.audio||'')}">
+        <div class="audio-cur" id="eAudioCur"></div>
+        <audio class="player" id="eAudioPlayer" controls preload="none" style="display:none"></audio>
+        <div class="audio-btns" style="margin-top:8px">
+          <button type="button" class="btn btn-edit" onclick="openAudioPicker()">🎵 Elegir de la carpeta</button>
+          <button type="button" class="btn btn-cancel" onclick="audioPasteLink()">🔗 Pegar enlace</button>
+          <button type="button" class="btn btn-cancel" onclick="audioClear()">✕ Quitar</button>
+        </div>
+      </div>`;
+    document.getElementById('btnEdit').style.display='none';
+    document.getElementById('btnSave').style.display='';
+    document.getElementById('btnCancel').style.display='';
+    audioUpdateEditUI();
+  }
+}
+
+function toggleEdit(on){
+  editMode = on;
+  const s = SALMOS.find(x=>x.id===currentId);
+  if(on) ceInit(s);
+  renderModal(s);
+  if(on) ceRender();
+}
+
+function saveEdit(){
+  const s = SALMOS.find(x=>x.id===currentId);
+  s.dia      = document.getElementById('eDia').value;
+  s.tiempo   = document.getElementById('eTiempo').value;
+  s.numero   = document.getElementById('eNumero').value;
+  s.audio    = document.getElementById('eAudio').value;
+
+  // Leer texto de los inputs inline del chord editor
+  const wrap = document.getElementById('ce-wrap');
+  if(wrap && ceState.lines){
+    const aCount = ceState.antCount;
+    const textInputs = wrap.querySelectorAll('.ce-text-input');
+    const allText = Array.from(textInputs).map(el=>el.value);
+    s.salmodia = allText.slice(0, aCount).join('\n');
+    s.salmo    = allText.slice(aCount).join('\n');
+    // Serializar notas desde ceState.lines
+    s.notasLines = ceState.lines.map(line => ceLineToString(line));
+    s.notas      = s.notasLines.join('\n');
+  } else {
+    s.salmodia = document.getElementById('eSalmodia')?.value || s.salmodia;
+    s.salmo    = document.getElementById('eSalmo')?.value    || s.salmo;
+  }
+
+  editMode = false;
+  renderModal(s);
+  render();
+  lsSave();
+}
+
+function closeModal(e){
+  if(e.target===document.getElementById('overlay')) closeModalDirect();
+}
+function closeModalDirect(){
+  document.getElementById('overlay').classList.remove('open');
+  editMode=false;
+}
+
+
+// ─── CHORD EDITOR ENGINE ────────────────────────────────────────────────────
+// Estado global del editor de acordes en modo edición
+const NOTAS_LIST = ['Do','Do#','Reb','Re','Re#','Mib','Mi','Fa','Fa#','Solb',
+  'Sol','Sol#','Lab','La','La#','Sib','Si',
+  'do','do#','reb','re','re#','mib','mi','fa','fa#','solb',
+  'sol','sol#','lab','la','la#','sib','si'];
+const ENARM_IDX = {
+  'Do':0,'do':0,'Do#':1,'do#':1,'Reb':1,'reb':1,'Re':2,'re':2,
+  'Re#':3,'re#':3,'Mib':3,'mib':3,'Mi':4,'mi':4,'Fa':5,'fa':5,
+  'Fa#':6,'fa#':6,'Solb':6,'solb':6,'Sol':7,'sol':7,'Sol#':8,'sol#':8,
+  'Lab':8,'lab':8,'La':9,'la':9,'La#':10,'la#':10,'Sib':10,'sib':10,'Si':11,'si':11
+};
+const IDX2N = {0:{M:'Do',m:'do'},1:{M:'Reb',m:'reb'},2:{M:'Re',m:'re'},
+  3:{M:'Mib',m:'mib'},4:{M:'Mi',m:'mi'},5:{M:'Fa',m:'fa'},
+  6:{M:'Fa#',m:'fa#'},7:{M:'Sol',m:'sol'},8:{M:'Lab',m:'lab'},
+  9:{M:'La',m:'la'},10:{M:'Sib',m:'sib'},11:{M:'Si',m:'si'}};
+
+function isNoteStr(t){ return Object.prototype.hasOwnProperty.call(ENARM_IDX,t); }
+
+let ceState = { lines:[], antCount:0, sel:null }; // sel={li,ui}
+
+// Inicializa ceState desde el salmo
+function ceInit(s){
+  const clines = chordLinesOf(s);
+  const tlines = textLinesOf(s);
+  const antCount = s.salmodia ? s.salmodia.split('\n').length : 0;
+  const n = Math.max(clines.length, tlines.length);
+  ceState.antCount = antCount;
+  ceState.sel = null;
+  ceState.lines = [];
+  for(let i=0;i<n;i++){
+    const cl = clines[i] || '';
+    const tl = tlines[i] !== undefined ? tlines[i] : '';
+    ceState.lines.push({ units: ceParseChordLine(cl), text: tl });
+  }
+}
+
+// Parsea una línea de acordes en unidades {type:'note'|'space', note, minor, content}
+
+// Descompone tokens fusionados tipo 'lam'->'la'+'m', 'fa#m'->'fa#'+'m', 'La7'->'La'+'7', etc.
+// Orden importante: primero los más largos (Sol#, Solb, Fa#, etc.)
+const FUSED_RE = /^(Do#|do#|Reb|reb|Re#|re#|Mib|mib|Fa#|fa#|Solb|solb|Sol#|sol#|Lab|lab|La#|la#|Sib|sib|Do|do|Re|re|Mi|mi|Fa|fa|Sol|sol|La|la|Si|si)(m)?(7)?$/;
+function expandFusedToken(tok) {
+  if (isNoteStr(tok)) return [tok]; // nota pura, sin sufijos pegados
+  const m = tok.match(FUSED_RE);
+  if (m && (m[2] || m[3])) {
+    const out = [m[1]];
+    if (m[2]) out.push('m');
+    if (m[3]) out.push('7');
+    return out;
+  }
+  return [tok];
+}
+// Expande todos los tokens de un array, descomponiendo los fusionados
+function expandTokenArray(arr) {
+  const out = [];
+  for (const t of arr) {
+    if (t === '\n') { out.push('\n'); continue; }
+    for (const e of expandFusedToken(t)) out.push(e);
+  }
+  return out;
+}
+function ceParseChordLine(str){
+  const units=[];
+  // Tokenizar: secuencias de espacios o de no-espacios
+  const rawToks = str.match(/ +|[^ ]+/g) || [];
+  // Expandir tokens fusionados (lam->la+m, fa#m->fa#+m, etc.)
+  const toks = [];
+  for (const t of rawToks) {
+    if (/^ +$/.test(t)) { toks.push(t); continue; }
+    for (const e of expandFusedToken(t)) toks.push(e);
+  }
+  let i=0;
+  while(i<toks.length){
+    const t=toks[i];
+    if(/^ +$/.test(t)){ units.push({type:'space',content:t}); i++; continue; }
+    // ¿es nota? buscar si el siguiente token es 'm' y/o '7'
+    if(isNoteStr(t)){
+      let j = i+1, minor=false, seventh=false;
+      if (j<toks.length && toks[j]==='m') { minor=true; j++; }
+      if (j<toks.length && toks[j]==='7') { seventh=true; j++; }
+      units.push({type:'note',note:t,minor,seventh});
+      i = j;
+    } else if(t==='m' && units.length && units[units.length-1].type==='note'){
+      units[units.length-1].minor=true; i++;
+    } else if(t==='7' && units.length && units[units.length-1].type==='note'){
+      units[units.length-1].seventh=true; i++;
+    } else {
+      // texto suelto que no es nota → tratar como espacio textual
+      units.push({type:'space',content:t}); i++;
+    }
+  }
+  return units;
+}
+
+// Convierte units[] de una línea de vuelta a string de acordes
+function ceLineToString(line){
+  return line.units.map(u=>{
+    if(u.type==='note') return u.note+(u.minor?'m':'')+(u.seventh?'7':'');
+    return u.content;
+  }).join('');
+}
+
+// ── Estado cursor de inserción: {li, afterUi} = insertar después de units[afterUi]
+// afterUi=-1 significa al principio de la línea
+let ceCursor = null; // {li, afterUi}
+
+// Renderiza el chord editor dentro de #ce-wrap
+function ceRender(){
+  const wrap = document.getElementById('ce-wrap');
+  if(!wrap) return;
+  const NOTES_OPTS = ['Do','Do#','Reb','Re','Re#','Mib','Mi','Fa','Fa#','Solb',
+    'Sol','Sol#','Lab','La','La#','Sib','Si',
+    'do','do#','reb','re','re#','mib','mi','fa','fa#','solb',
+    'sol','sol#','lab','la','la#','sib','si'];
+  let html='';
+  ceState.lines.forEach((line,li)=>{
+    const isAnt = li < ceState.antCount;
+    const isSel = ceState.sel && ceState.sel.li===li;
+    const selUi = isSel ? ceState.sel.ui : -1;
+    const selUnit = isSel ? line.units[selUi] : null;
+    const hasCursor = ceCursor && ceCursor.li===li;
+
+    html += `<div class="ce-block${isAnt?' is-ant':''}" data-li="${li}">`;
+
+    // ── Fila de acordes ──
+    html += `<div class="ce-chord-row">`;
+    if(line.units.length===0){
+      // Línea vacía: clic en toda la fila pone cursor al inicio
+      const curHere = hasCursor ? '<span class="ce-cursor"></span>' : '';
+      html+=`<span class="ce-tok sp" style="min-width:60px;cursor:text"
+        onclick="ceSetCursor(${li},-1)">${curHere}<span style="color:#ccc;font-size:11px">— sin notas —</span></span>`;
+    } else {
+      line.units.forEach((u,ui)=>{
+        if(u.type==='note'){
+          const sel=isSel&&selUi===ui;
+          const disp=u.note+(u.minor?'m':'')+(u.seventh?'7':'');
+          html+=`<span class="ce-tok note${sel?' sel':''}"
+            onclick="ceSelNote(${li},${ui})">${escHtml(disp)}</span>`;
+        } else {
+          // Espacio: dividir en caracteres individuales clicables
+          // El cursor se coloca DESPUÉS del carácter en el que se hace clic
+          const sp = u.content;
+          // Calculamos el índice "after" que corresponde a insertar tras este token de espacio
+          // Lo simplificamos: clic en cualquier parte del espacio = cursor después de este token
+          const curAfter = hasCursor && ceCursor.afterUi===ui;
+          html+=`<span class="ce-tok sp" style="cursor:text"
+            onclick="ceSetCursor(${li},${ui})">${escHtml(sp)}${curAfter?'<span class="ce-cursor"></span>':''}</span>`;
+        }
+      });
+      // Cursor al final (afterUi = units.length-1 cuando se hace clic tras el último)
+      const curEnd = hasCursor && ceCursor.afterUi===line.units.length;
+      if(curEnd) html+='<span class="ce-cursor"></span>';
+    }
+    html+=`<button class="btn-deline" onclick="ceDelLine(${li})"
+      style="float:right;margin-top:1px" title="Borrar línea completa">✕fila</button>`;
+    html+=`</div>`;
+
+    // ── Texto editable ──
+    html+=`<input class="ce-text-input" value="${escAttr(line.text)}"
+      placeholder="${isAnt?'Antífona...':'Texto del salmo...'}"
+      oninput="ceState.lines[${li}].text=this.value">`;
+
+    // ── Notebar inline (solo si hay nota seleccionada en esta línea) ──
+    const nbVis = (isSel && selUnit && selUnit.type==='note') ? ' vis' : '';
+    const nbNote = selUnit&&selUnit.type==='note' ? selUnit.note : '';
+    const nbMinor = selUnit&&selUnit.type==='note' ? selUnit.minor : false;
+    const nbSeventh = selUnit&&selUnit.type==='note' ? selUnit.seventh : false;
+    const opts = NOTES_OPTS.map(n=>`<option${n===nbNote?' selected':''}>${n}</option>`).join('');
+    html+=`<div class="ce-notebar-inline${nbVis}" id="ce-nb-${li}">
+      <button class="btn-mv"
+        onmousedown="ceMoveRepeatStart(-1,event)"
+        onmouseup="ceMoveRepeatStop()"
+        onmouseleave="ceMoveRepeatStop()">◀</button>
+      <button class="btn-mv"
+        onmousedown="ceMoveRepeatStart(1,event)"
+        onmouseup="ceMoveRepeatStop()"
+        onmouseleave="ceMoveRepeatStop()">▶</button>
+      <label>Nota:</label>
+      <select onchange="ceChangeNote(this.value)">${opts}</select>
+      <select onchange="ceChangeMinor(this.value==='1')">
+        <option value="0"${!nbMinor?' selected':''}>Mayor</option>
+        <option value="1"${nbMinor?' selected':''}>menor m</option>
+      </select>
+      <label style="margin-left:6px"><input type="checkbox" onchange="ceChangeSeventh(this.checked)"${nbSeventh?' checked':''}> 7ª (7)</label>
+      <button class="btn-mv del" onclick="ceDelNote()" title="Eliminar esta nota">✕nota</button>
+      <button class="btn-mv" onclick="ceDesel()" style="margin-left:4px">desel</button>
+    </div>`;
+
+    // ── Fila añadir nota ──
+    // Muestra dónde se insertará
+    const insertHint = hasCursor ? `tras pos.${ceCursor.afterUi+1}` :
+      (isSel && selUnit && selUnit.type==='note') ? 'tras nota sel.' : 'al final';
+    html+=`<div class="ce-addrow">
+      <input type="text" placeholder="Sol m / Fa#" id="ce-nadd-${li}"
+        onkeydown="if(event.key==='Enter')ceAddNote(${li})">
+      <button onclick="ceAddNote(${li})">+nota</button>
+      <button onclick="ceAddSpace(${li})">+esp</button>
+      <button onclick="ceTrimLine(${li})" title="Fusiona espacios seguidos y quita el sobrante del final">🧹 limpiar espacios</button>
+      <span style="font-size:10px;color:#aaa;margin-left:4px">${insertHint}</span>
+    </div>`;
+
+    html+=`</div>`;
+  });
+  wrap.innerHTML=html;
+}
+
+// Recorta espacios acumulados: fusiona unidades 'space' consecutivas en una sola,
+// quita las de longitud 0, y si la línea termina en espacio (tras la última nota)
+// lo deja como mucho en un espacio. No toca notas ni su orden.
+function ceTrimLine(li){
+  const units=ceState.lines[li].units;
+  const merged=[];
+  for(const u of units){
+    if(u.type==='space'){
+      if(merged.length && merged[merged.length-1].type==='space'){
+        merged[merged.length-1]={type:'space',content:merged[merged.length-1].content+u.content};
+      } else if(u.content.length>0){
+        merged.push({...u});
+      }
+    } else {
+      merged.push(u);
+    }
+  }
+  // recortar espacio final sobrante (deja como mucho 1 si existe)
+  if(merged.length && merged[merged.length-1].type==='space'){
+    merged[merged.length-1]={type:'space',content:' '};
+  }
+  ceState.lines[li].units=merged;
+  ceState.sel=null;
+  ceRender();
+  toast('Espacios recortados en esa línea');
+}
+
+// Fijar cursor de inserción en posición
+function ceSetCursor(li, afterUi){
+  ceCursor = {li, afterUi};
+  ceState.sel = null; // deseleccionar nota si había una
+  ceRender();
+}
+
+function ceSelNote(li,ui){
+  ceCursor=null; // limpiar cursor al seleccionar nota
+  ceState.sel={li,ui};
+  ceRender();
+}
+function ceDesel(){
+  ceState.sel=null;
+  ceRender();
+}
+
+// ── Repeat automático al mantener pulsado ◀▶ ──
+let _moveTimer=null;
+function ceMoveRepeatStart(dir,e){
+  e.preventDefault();
+  ceMoveNote(dir); // primer movimiento inmediato
+  _moveTimer=setInterval(()=>ceMoveNote(dir),120);
+}
+function ceMoveRepeatStop(){
+  if(_moveTimer){ clearInterval(_moveTimer); _moveTimer=null; }
+}
+// Red de seguridad: ceRender() reconstruye los botones ◀▶ en cada tick,
+// así que el mouseup/mouseleave del propio botón puede perderse (el
+// elemento sobre el que estaba el cursor ya no existe cuando el navegador
+// dispara el evento) y el setInterval se queda corriendo indefinidamente.
+// Escuchamos a nivel de document/window, que nunca se destruye, como respaldo.
+document.addEventListener('mouseup', ceMoveRepeatStop);
+document.addEventListener('mouseleave', ceMoveRepeatStop);
+window.addEventListener('blur', ceMoveRepeatStop);
+document.addEventListener('touchend', ceMoveRepeatStop);
+document.addEventListener('touchcancel', ceMoveRepeatStop);
+
+function ceDelNote(){
+  if(!ceState.sel) return;
+  const {li,ui}=ceState.sel;
+  const units=ceState.lines[li].units;
+  const u=units[ui];
+  if(!u||u.type!=='note') return;
+  const disp=u.note+(u.minor?'m':'')+(u.seventh?'7':'');
+  if(!confirm('¿Eliminar la nota "'+disp+'"?')) return;
+  // Eliminar la nota y fusionar espacios adyacentes si los hay
+  units.splice(ui,1);
+  // Si quedan dos espacios consecutivos, fusionarlos
+  if(ui>0&&ui<units.length&&units[ui-1].type==='space'&&units[ui].type==='space'){
+    units[ui-1]={...units[ui-1],content:units[ui-1].content+units[ui].content};
+    units.splice(ui,1);
+  }
+  ceState.sel=null;
+  ceRender();
+}
+
+// Tecla Delete/Supr elimina la nota seleccionada
+document.addEventListener('keydown', function(e){
+  if((e.key==='Delete'||e.key==='Backspace')&&ceState.sel){
+    const wrap=document.getElementById('ce-wrap');
+    if(!wrap||!wrap.contains(document.activeElement)||document.activeElement.tagName==='INPUT') return;
+    e.preventDefault();
+    ceDelNote();
+  }
+});
+
+function ceUpdNotebar(){ /* no-op: ceRender maneja la notebar inline */ }
+
+function ceChangeNote(val){
+  if(!ceState.sel||!val) return;
+  const {li,ui}=ceState.sel;
+  ceState.lines[li].units[ui].note=val;
+  ceRender();
+}
+function ceChangeMinor(isMinor){
+  if(!ceState.sel) return;
+  const {li,ui}=ceState.sel;
+  ceState.lines[li].units[ui].minor=isMinor;
+  ceRender();
+}
+function ceChangeSeventh(isSeventh){
+  if(!ceState.sel) return;
+  const {li,ui}=ceState.sel;
+  ceState.lines[li].units[ui].seventh=isSeventh;
+  ceRender();
+}
+
+function ceMoveNote(dir){
+  if(!ceState.sel) return;
+  const {li,ui}=ceState.sel;
+  const units=ceState.lines[li].units;
+  const note=units[ui];
+  if(!note||note.type!=='note') return;
+
+  if(dir===1){
+    // ── Mover DERECHA: quitar 1 char del espacio derecho, añadir al izquierdo ──
+    // Si no hay espacio a la derecha o está vacío, crearlo para poder seguir moviendo
+    const rIdx=ui+1;
+    if(rIdx>=units.length||units[rIdx].type!=='space'){
+      units.push({type:'space',content:''});
+    }
+    // Reducir espacio derecho en 1
+    units[rIdx]={...units[rIdx], content:units[rIdx].content.slice(1)};
+    // Ampliar espacio izquierdo en 1
+    const lIdx=ui-1;
+    if(lIdx>=0&&units[lIdx].type==='space'){
+      units[lIdx]={...units[lIdx], content:units[lIdx].content+' '};
+    } else {
+      units.splice(ui,0,{type:'space',content:' '});
+      ceState.sel={li,ui:ui+1};
+    }
+  } else {
+    // ── Mover IZQUIERDA: quitar 1 char del espacio izquierdo, añadir al derecho ──
+    const lIdx=ui-1;
+    if(lIdx<0||units[lIdx].type!=='space'||units[lIdx].content.length===0) return;
+    // Reducir espacio izquierdo en 1
+    units[lIdx]={...units[lIdx], content:units[lIdx].content.slice(0,-1)};
+    // Ampliar espacio derecho en 1
+    const rIdx=ui+1;
+    if(rIdx<units.length&&units[rIdx].type==='space'){
+      units[rIdx]={...units[rIdx], content:' '+units[rIdx].content};
+    } else {
+      units.splice(ui+1,0,{type:'space',content:' '});
+    }
+    // La nota NO cambia de índice — el espacio izquierdo se acortó, la nota sigue en ui
+  }
+
+  ceRender();
+}
+
+function ceAddNote(li){
+  const inp=document.getElementById(`ce-nadd-${li}`);
+  const val=inp.value.trim(); if(!val) return;
+  const parts=val.split(/\s+/);
+  let noteStr=parts[0];
+  // fusión manual "Fa #" → "Fa#"
+  if((parts[1]==='#'||parts[1]==='b')&&isNoteStr(noteStr+parts[1])){
+    noteStr=noteStr+parts[1]; parts.splice(1,1);
+  }
+  // admitir también el acorde pegado, p.ej. "La7", "lam", "fa#m7"
+  if(!isNoteStr(noteStr)){
+    const expanded = expandFusedToken(noteStr);
+    if(expanded.length>1 && isNoteStr(expanded[0])){
+      parts.splice(1,0,...expanded.slice(1));
+      noteStr = expanded[0];
+    }
+  }
+  const rest=parts.slice(1).map(p=>p.toLowerCase());
+  const minor=rest.includes('m');
+  const seventh=rest.includes('7');
+  if(!isNoteStr(noteStr)){alert('"'+noteStr+'" no es una nota reconocida');return;}
+  const units=ceState.lines[li].units;
+  const newUnit={type:'note',note:noteStr,minor,seventh};
+
+  // Determinar posición de inserción
+  let insertAt; // índice en units donde se insertará la nota
+  if(ceCursor && ceCursor.li===li){
+    // Cursor de inserción activo: insertar después de afterUi
+    insertAt = ceCursor.afterUi + 1; // +1 porque splice inserta antes del índice
+    // Ajustar: afterUi es el índice del token de espacio tras el que va el cursor
+    // Necesitamos separar ese espacio en dos partes si el cursor está en medio
+    // Por simplicidad: insertamos la nota justo después del token apuntado
+    const after = ceCursor.afterUi; // índice del token espacio
+    if(after >= 0 && after < units.length && units[after].type==='space'){
+      // Dividir el espacio en dos mitades y poner la nota en medio
+      const sp = units[after].content;
+      // Usamos la mitad como separación (mínimo 1 espacio a cada lado)
+      const half = Math.floor(sp.length/2);
+      const left = sp.slice(0,half) || '';
+      const right = sp.slice(half) || '';
+      const replacement = [];
+      if(left) replacement.push({type:'space',content:left});
+      replacement.push(newUnit);
+      if(right) replacement.push({type:'space',content:right});
+      units.splice(after,1,...replacement);
+    } else {
+      // Insertar directamente después de afterUi
+      const pos = Math.min(after+1, units.length);
+      if(pos>0 && pos<=units.length && units[pos-1].type!=='space')
+        units.splice(pos,0,{type:'space',content:' '});
+      units.splice(Math.min(after+1,units.length),0,newUnit);
+    }
+    ceCursor=null;
+  } else if(ceState.sel && ceState.sel.li===li){
+    // Nota seleccionada: insertar justo después de ella
+    const afterSel = ceState.sel.ui+1;
+    if(afterSel<units.length && units[afterSel].type!=='space')
+      units.splice(afterSel,0,{type:'space',content:' '});
+    units.splice(afterSel,0,newUnit);
+  } else {
+    // Al final
+    if(units.length && units[units.length-1].type!=='space')
+      units.push({type:'space',content:' '});
+    units.push(newUnit);
+  }
+
+  inp.value=''; ceRender();
+}
+
+function ceAddSpace(li){
+  const units=ceState.lines[li].units;
+  if(units.length&&units[units.length-1].type==='space'){
+    units[units.length-1].content+=' ';
+  } else {
+    units.push({type:'space',content:' '});
+  }
+  ceRender();
+}
+
+function ceAddLine(){
+  const antCount=ceState.antCount;
+  // Añadir al final del salmo
+  ceState.lines.push({units:[],text:''});
+  ceRender();
+}
+
+function ceDelLine(li){
+  if(ceState.sel&&ceState.sel.li===li) ceState.sel=null;
+  else if(ceState.sel&&ceState.sel.li>li) ceState.sel.li--;
+  ceState.lines.splice(li,1);
+  if(li<ceState.antCount) ceState.antCount=Math.max(0,ceState.antCount-1);
+  ceRender();
+  ceUpdNotebar();
+}
+
+// ─── EXPORT ─────────────────────────────────────────────────────────────────
+function openExport(){
+  const js = SALMOS.map(s=>{
+    const notasVal = hasChords(s)
+      ? JSON.stringify(linesToNotasArray(chordLinesOf(s)))
+      : "['Faltan notas']";
+    return `await insertSalmo(\n  '${s.ciclo}',\n  '${s.tiempo}',\n  '${esc(s.dia)}',\n  '${esc(s.numero)}',\n  '${s.audio}',\n  '${esc(s.salmodia)}',\n  '${esc(s.salmo)}',\n  ${notasVal}\n);`;
+  }).join('\n');
+  document.getElementById('exportPre').textContent = js;
+  document.getElementById('exportModal').classList.add('open');
+}
+function copyExport(){
+  navigator.clipboard.writeText(document.getElementById('exportPre').textContent)
+    .then(()=>alert('¡Copiado al portapapeles!'));
+}
+
+// ─── UTILS ──────────────────────────────────────────────────────────────────
+function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escAttr(s){ return String(s).replace(/"/g,'&quot;'); }
+function esc(s){ return String(s).replace(/'/g,"\\'").replace(/\n/g,'\\n'); }
+
+// ─── LOCALSTORAGE / SESIÓN ──────────────────────────────────────────────────
+const LS_KEY = 'salmodia_session';
+
+function lsSave(){
+  try {
+    const data = SALMOS.map(s=>({
+      id:s.id, ciclo:s.ciclo, tiempo:s.tiempo, dia:s.dia,
+      numero:s.numero, audio:s.audio,
+      salmodia:s.salmodia, salmo:s.salmo,
+      notas:s.notas
+    }));
+    localStorage.setItem(LS_KEY, JSON.stringify({
+      ts: new Date().toISOString(),
+      salmos: data
+    }));
+  } catch(e){ console.warn('localStorage no disponible:', e); }
+}
+
+function lsLoad(){
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if(!raw) return null;
+    return JSON.parse(raw);
+  } catch(e){ return null; }
+}
+
+function lsClear(){
+  try { localStorage.removeItem(LS_KEY); } catch(e){}
+}
+
+function sessionResume(){
+  document.getElementById('session-banner').style.display='none';
+  toast('✓ Sesión restaurada');
+}
+
+function sessionDiscard(){
+  lsClear();
+  SALMOS.length=0; render();
+  document.getElementById('session-banner').style.display='none';
+  toast('Sesión descartada — importa un .db para comenzar');
+}
+
+function sessionCheck(){
+  const saved = lsLoad();
+  if(!saved || !saved.salmos || !saved.salmos.length) return;
+  // Mostrar banner
+  const banner = document.getElementById('session-banner');
+  const ts = new Date(saved.ts).toLocaleString('es-ES',{
+    day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'
+  });
+  document.getElementById('session-msg').textContent =
+    `Hay ${saved.salmos.length} salmos guardados de la sesión del ${ts}.`;
+  // Cargar datos en SALMOS
+  SALMOS.length=0;
+  saved.salmos.forEach(s=>{
+    normalizeSalmo(s);
+    SALMOS.push(s);
+  });
+  render();
+  banner.style.display='flex';
+}
+
+// ─── INIT ───────────────────────────────────────────────────────────────────
+SALMOS.forEach(normalizeSalmo);
+sessionCheck();
+if(!SALMOS.length) render();
+</script>
+</body>
+</html>
