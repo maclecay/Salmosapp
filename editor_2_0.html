@@ -90,6 +90,8 @@
   .btn-import:hover { background: #0D47A1; }
   .btn-github { background: #24292e; color: #fff; }
   .btn-github:hover { background: #000; }
+  .btn-exportgh { background: #00838F; color: #fff; }
+  .btn-exportgh:hover { background: #006064; }
   .btn-exportdb { background: #2e7d32; color: #fff; }
   .btn-exportdb:hover { background: #1b5e20; }
   .btn-export-js { background: #607D8B; color: #fff; }
@@ -263,6 +265,7 @@
   <input type="file" id="dbFile" accept="*/*" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none" onchange="importDB(event)">
   <label for="dbFile" class="btn btn-import" style="cursor:pointer;user-select:none">⬆ Importar BD</label>
   <button class="btn btn-exportdb" onclick="exportDB()">⬇ Exportar BD</button>
+  <button class="btn btn-exportgh" onclick="exportDB(true)">⬇ Exportar para GitHub (salmos.db)</button>
   <button class="btn btn-clear" onclick="clearFilters()">✕ Limpiar</button>
   <button class="btn btn-export-js" onclick="openExport()">JS</button>
 </div>
@@ -827,7 +830,7 @@ async function importDB(ev){
     alert('Error al importar la base de datos:\n'+err.message);
   }
 }
-async function exportDB(){
+async function exportDB(githubName){
   try{
     if(!SALMOS.length){ toast('No hay datos para exportar.'); return; }
     toast('Generando base de datos…');
@@ -842,14 +845,18 @@ async function exportDB(){
     stmt.free();
     const data=db.export(); db.close();
     const blob=new Blob([data],{type:'application/octet-stream'});
-    const ts=new Date().toISOString().slice(0,16).replace('T','_').replace(/:/g,'-');
     const a=document.createElement('a');
     a.href=URL.createObjectURL(blob);
-    a.download=`Salmos_backup_${ts}.db`;
+    if(githubName){
+      a.download='salmos.db';
+    } else {
+      const ts=new Date().toISOString().slice(0,16).replace('T','_').replace(/:/g,'-');
+      a.download=`Salmos_backup_${ts}.db`;
+    }
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(()=>URL.revokeObjectURL(a.href),1000);
     lsSave();
-    toast('✓ Base de datos exportada');
+    toast(githubName ? '✓ Exportado como salmos.db (para GitHub)' : '✓ Base de datos exportada');
   }catch(err){
     console.error(err);
     alert('Error al exportar la base de datos:\n'+err.message);
