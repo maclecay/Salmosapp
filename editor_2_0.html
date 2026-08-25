@@ -128,6 +128,10 @@
     border-radius: 2px; padding: 0 1px; }
   .ce-tok.note:hover { background: #fde8e8; }
   .ce-tok.note.sel { background: #c0392b; color: #fff; border-radius: 3px; }
+  .ce-tok.capo { color: #1565C0; font-weight: 700; cursor: pointer;
+    background: #e3f2fd; border-radius: 3px; padding: 0 3px; margin: 0 1px; }
+  .ce-tok.capo:hover { background: #bbdefb; }
+  .ce-tok.capo.sel { background: #1565C0; color: #fff; }
   .ce-tok.sp { cursor: default; }
 
   /* fila de texto inline */
@@ -1103,6 +1107,12 @@ const IDX2N = {0:{M:'Do',m:'do'},1:{M:'Reb',m:'reb'},2:{M:'Re',m:'re'},
   9:{M:'La',m:'la'},10:{M:'Sib',m:'sib'},11:{M:'Si',m:'si'}};
 
 function isNoteStr(t){ return Object.prototype.hasOwnProperty.call(ENARM_IDX,t); }
+// Token de cejilla del manuscrito: "C" + número entero (con signo opcional). Ej: C3, C-2
+function isCapoStr(t){ return /^C-?\d+$/.test(t); }
+function normalizeCapoStr(t){
+  const m = String(t).trim().match(/^c(-?\d+)$/i);
+  return m ? ('C'+m[1]) : null;
+}
 
 let ceState = { lines:[], antCount:0, sel:null }; // sel={li,ui}
 
@@ -1172,6 +1182,8 @@ function ceParseChordLine(str){
       units[units.length-1].minor=true; i++;
     } else if(t==='7' && units.length && units[units.length-1].type==='note'){
       units[units.length-1].seventh=true; i++;
+    } else if(isCapoStr(t)){
+      units.push({type:'capo',content:t}); i++;
     } else {
       // texto suelto que no es nota → tratar como espacio textual
       units.push({type:'space',content:t}); i++;
@@ -1184,6 +1196,7 @@ function ceParseChordLine(str){
 function ceLineToString(line){
   return line.units.map(u=>{
     if(u.type==='note') return u.note+(u.minor?'m':'')+(u.seventh?'7':'');
+    if(u.type==='capo') return u.content;
     return u.content;
   }).join('');
 }
@@ -1224,6 +1237,10 @@ function ceRender(){
           const disp=u.note+(u.minor?'m':'')+(u.seventh?'7':'');
           html+=`<span class="ce-tok note${sel?' sel':''}"
             onclick="ceSelNote(${li},${ui})">${escHtml(disp)}</span>`;
+        } else if(u.type==='capo'){
+          const sel=isSel&&selUi===ui;
+          html+=`<span class="ce-tok capo${sel?' sel':''}" title="Cejilla — clic para borrar"
+            onclick="ceDelCapo(${li},${ui})">🎸${escHtml(u.content)}</span>`;
         } else {
           // Espacio: dividir en caracteres individuales clicables
           // El cursor se coloca DESPUÉS del carácter en el que se hace clic
@@ -1279,7 +1296,7 @@ function ceRender(){
     const insertHint = hasCursor ? `tras pos.${ceCursor.afterUi+1}` :
       (isSel && selUnit && selUnit.type==='note') ? 'tras nota sel.' : 'al final';
     html+=`<div class="ce-addrow">
-      <input type="text" placeholder="Sol m / Fa#" id="ce-nadd-${li}"
+      <input type="text" placeholder="Sol m / Fa# / C3 (cejilla)" id="ce-nadd-${li}"
         onkeydown="if(event.key==='Enter')ceAddNote(${li})">
       <button onclick="ceAddNote(${li})">+nota</button>
       <button onclick="ceAddSpace(${li})">+esp</button>
@@ -1450,9 +1467,28 @@ function ceMoveNote(dir){
   ceRender();
 }
 
+function ceDelCapo(li,ui){
+  const units=ceState.lines[li].units;
+  const u=units[ui];
+  if(!u||u.type!=='capo') return;
+  if(!confirm(`¿Borrar la indicación de cejilla "${u.content}"?`)) return;
+  units.splice(ui,1);
+  if(ceState.sel&&ceState.sel.li===li&&ceState.sel.ui===ui) ceState.sel=null;
+  ceRender();
+}
+
 function ceAddNote(li){
   const inp=document.getElementById(`ce-nadd-${li}`);
   const val=inp.value.trim(); if(!val) return;
+
+  // ── Token de cejilla (C3, C-2...) ──
+  const capoTok = normalizeCapoStr(val);
+  if(capoTok){
+    ceInsertUnit(li, {type:'capo', content:capoTok});
+    inp.value=''; ceRender();
+    return;
+  }
+
   const parts=val.split(/\s+/);
   let noteStr=parts[0];
   // fusión manual "Fa #" → "Fa#"
@@ -1471,20 +1507,25 @@ function ceAddNote(li){
   const minor=rest.includes('m');
   const seventh=rest.includes('7');
   if(!isNoteStr(noteStr)){alert('"'+noteStr+'" no es una nota reconocida');return;}
-  const units=ceState.lines[li].units;
   const newUnit={type:'note',note:noteStr,minor,seventh};
+  ceInsertUnit(li, newUnit);
 
-  // Determinar posición de inserción
-  let insertAt; // índice en units donde se insertará la nota
+  inp.value=''; ceRender();
+}
+
+// Inserta una unidad (nota o cejilla) en la línea `li`, respetando el cursor
+// de inserción activo o la unidad seleccionada; si no hay ninguno, la agrega al final.
+function ceInsertUnit(li, newUnit){
+  const units=ceState.lines[li].units;
+
   if(ceCursor && ceCursor.li===li){
     // Cursor de inserción activo: insertar después de afterUi
-    insertAt = ceCursor.afterUi + 1; // +1 porque splice inserta antes del índice
     // Ajustar: afterUi es el índice del token de espacio tras el que va el cursor
     // Necesitamos separar ese espacio en dos partes si el cursor está en medio
-    // Por simplicidad: insertamos la nota justo después del token apuntado
+    // Por simplicidad: insertamos la unidad justo después del token apuntado
     const after = ceCursor.afterUi; // índice del token espacio
     if(after >= 0 && after < units.length && units[after].type==='space'){
-      // Dividir el espacio en dos mitades y poner la nota en medio
+      // Dividir el espacio en dos mitades y poner la unidad en medio
       const sp = units[after].content;
       // Usamos la mitad como separación (mínimo 1 espacio a cada lado)
       const half = Math.floor(sp.length/2);
@@ -1504,7 +1545,7 @@ function ceAddNote(li){
     }
     ceCursor=null;
   } else if(ceState.sel && ceState.sel.li===li){
-    // Nota seleccionada: insertar justo después de ella
+    // Unidad seleccionada: insertar justo después de ella
     const afterSel = ceState.sel.ui+1;
     if(afterSel<units.length && units[afterSel].type!=='space')
       units.splice(afterSel,0,{type:'space',content:' '});
@@ -1515,8 +1556,6 @@ function ceAddNote(li){
       units.push({type:'space',content:' '});
     units.push(newUnit);
   }
-
-  inp.value=''; ceRender();
 }
 
 function ceAddSpace(li){
